@@ -5,6 +5,7 @@
 export const PARSE_RESUME_SYSTEM = `You are folii.ai's resume parser. Your job is to read a resume (plain text, possibly extracted from a PDF) and produce a JSON object that matches the folii Content schema exactly.
 
 Rules:
+- Output a single JSON object at the top level — NOT an array, NOT wrapped in { "content": ... } or { "data": ... }. The top-level keys must be the Content fields directly (name, tagline, bio, links, experience, projects, education).
 - Output JSON only. No prose, no markdown.
 - Fields: name, tagline, bio, links, experience[], projects[], education[]?
 - name: the person's full name

@@ -13,6 +13,6 @@ export function openai(): OpenAI {
   return _client
 }
 
-// v1 model choice. Cheap enough for iterative edits, strong enough for
-// JSON-mode structured output. Bump to gpt-5 for production later.
-export const MODEL = 'gpt-5-mini'
+// v1 model choice. gpt-4o-mini is cheap, fast, and has rock-solid
+// json_object mode support. Bump to gpt-4o or gpt-4.1 for production.
+export const MODEL = 'gpt-4o-mini'

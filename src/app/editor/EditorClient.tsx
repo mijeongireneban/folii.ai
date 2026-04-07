@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import type { Content } from '@/lib/content/schema'
+import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import type { ChatMessage } from '@/lib/supabase/types'
 import { SwePortfolio } from '@/components/template/SwePortfolio'
 import { signOut } from '@/app/auth/actions'
@@ -22,7 +23,11 @@ export function EditorClient({
   initialPublished: boolean
   username: string
 }) {
-  const [content, setContent] = useState<Content | null>(initialContent)
+  const hasRealContent = initialContent !== null
+  const [content, setContent] = useState<Content>(
+    initialContent ?? PLACEHOLDER_CONTENT
+  )
+  const [isPlaceholder, setIsPlaceholder] = useState(!hasRealContent)
   const [messages, setMessages] = useState<Msg[]>(
     initialMessages.map((m) => ({
       id: m.id,
@@ -73,6 +78,7 @@ export function EditorClient({
         return
       }
       setContent(json.content)
+      setIsPlaceholder(false)
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'upload_failed')
     } finally {
@@ -134,32 +140,29 @@ export function EditorClient({
     if (!res.ok) setPublished(!next)
   }
 
-  // Empty state: no site yet. Show upload dropzone.
-  if (!content) {
-    return (
-      <main style={styles.emptyMain}>
-        <TopBar username={username} />
-        <div style={styles.emptyInner}>
-          <h1 style={styles.emptyHero}>Start with a resume.</h1>
-          <p style={styles.emptySub}>
-            Drop a PDF, .txt, or .md file. We&rsquo;ll parse it into a portfolio
-            you can then tweak via chat.
-          </p>
-          <Dropzone onFile={handleUpload} uploading={uploading} />
-          {uploadError && <p style={styles.error}>{uploadError}</p>}
-        </div>
-      </main>
-    )
-  }
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
     <main style={styles.main} data-layout={layout}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) handleUpload(f)
+          e.target.value = ''
+        }}
+      />
       <TopBar
         username={username}
         layout={layout}
         onLayoutChange={setLayout}
         published={published}
         onPublishToggle={handlePublishToggle}
+        onUploadClick={() => fileInputRef.current?.click()}
+        uploading={uploading}
       />
 
       <div
@@ -192,9 +195,13 @@ export function EditorClient({
           <div ref={chatScrollRef} style={styles.chatScroll}>
             {messages.length === 0 && (
               <p style={styles.hint}>
-                Try: &ldquo;tighten the bio&rdquo;, &ldquo;add a project about
-                X&rdquo;, or &ldquo;rewrite my Acme impact line to quantify it&rdquo;.
+                {isPlaceholder
+                  ? 'Upload your resume to populate the preview, or start describing your portfolio in chat. Try: "I\'m a staff engineer at Acme working on developer tools".'
+                  : 'Try: "tighten the bio", "add a project about X", or "rewrite my Acme impact line to quantify it".'}
               </p>
+            )}
+            {uploadError && (
+              <p style={styles.error}>Upload failed: {uploadError}</p>
             )}
             {messages.map((m) => (
               <div
@@ -238,17 +245,30 @@ function TopBar({
   onLayoutChange,
   published,
   onPublishToggle,
+  onUploadClick,
+  uploading,
 }: {
   username: string
   layout?: Layout
   onLayoutChange?: (l: Layout) => void
   published?: boolean
   onPublishToggle?: () => void
+  onUploadClick?: () => void
+  uploading?: boolean
 }) {
   return (
     <header style={styles.topbar}>
       <div style={styles.brand}>folii.ai</div>
       <div style={styles.topbarRight}>
+        {onUploadClick && (
+          <button
+            onClick={onUploadClick}
+            disabled={uploading}
+            style={styles.ghostBtn}
+          >
+            {uploading ? 'Parsing…' : 'Upload resume'}
+          </button>
+        )}
         {layout && onLayoutChange && (
           <div style={styles.segmented}>
             <button

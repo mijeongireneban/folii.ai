@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { chatEdit } from '@/lib/llm/chatEdit'
 import { contentSchema, type Content } from '@/lib/content/schema'
+import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -39,9 +40,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 4. Load the user's site + validate current content
+  // 4. Load the user's site + validate current content.
+  //    If no site row exists yet, create one seeded with placeholder content
+  //    so the user can start chatting without an upload.
   const admin = createAdminClient()
-  const { data: site, error: siteErr } = await admin
+  let { data: site, error: siteErr } = await admin
     .from('sites')
     .select('id, content')
     .eq('owner_id', user.id)
@@ -50,10 +53,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'db_error', detail: siteErr.message }, { status: 500 })
   }
   if (!site) {
-    return NextResponse.json(
-      { error: 'no_site', message: 'Upload a resume first.' },
-      { status: 400 }
-    )
+    const { data: created, error: createErr } = await admin
+      .from('sites')
+      .insert({
+        owner_id: user.id,
+        template: 'swe',
+        content: PLACEHOLDER_CONTENT,
+      })
+      .select('id, content')
+      .single()
+    if (createErr || !created) {
+      return NextResponse.json(
+        { error: 'db_error', detail: createErr?.message },
+        { status: 500 }
+      )
+    }
+    site = created
   }
 
   const currentParse = contentSchema.safeParse(site.content)

@@ -38,7 +38,23 @@ export async function parseResume(
   try {
     parsed = JSON.parse(raw)
   } catch {
+    console.error('[parseResume] non-JSON output:', raw.slice(0, 500))
     return { ok: false, reason: 'invalid_output', detail: 'not json' }
+  }
+
+  // Defensive: some models occasionally wrap or split the object.
+  // 1. If top-level is an array, try the first element.
+  // 2. If top-level is { content: {...} } or { data: {...} }, unwrap.
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    parsed = parsed[0]
+  }
+  if (parsed && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>
+    if (obj.content && typeof obj.content === 'object' && !('name' in obj)) {
+      parsed = obj.content
+    } else if (obj.data && typeof obj.data === 'object' && !('name' in obj)) {
+      parsed = obj.data
+    }
   }
 
   if (
@@ -52,6 +68,12 @@ export async function parseResume(
 
   const result = contentSchema.safeParse(parsed)
   if (!result.success) {
+    console.error(
+      '[parseResume] schema mismatch. raw output:',
+      raw.slice(0, 1000),
+      '\nissues:',
+      result.error.issues
+    )
     return {
       ok: false,
       reason: 'invalid_output',
