@@ -145,12 +145,12 @@ describe('projectSchema', () => {
     expect(parsed.tech).toEqual([])
   })
 
-  it('rejects more than 12 tech tags', () => {
+  it('rejects more than 20 tech tags', () => {
     expect(() =>
       projectSchema.parse({
         title: 'x',
         description: 'y',
-        tech: Array.from({ length: 13 }, (_, i) => `t${i}`),
+        tech: Array.from({ length: 21 }, (_, i) => `t${i}`),
       })
     ).toThrow()
   })
