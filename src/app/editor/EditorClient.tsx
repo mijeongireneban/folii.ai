@@ -4,7 +4,15 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import type { Content } from '@/lib/content/schema'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import type { ChatMessage } from '@/lib/supabase/types'
-import { SwePortfolio } from '@/components/template/SwePortfolio'
+import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
+
+const SECTIONS: { key: PortfolioSection; label: string }[] = [
+  { key: 'profile', label: 'Profile' },
+  { key: 'experience', label: 'Experience' },
+  { key: 'skills', label: 'Skills' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'contact', label: 'Contact' },
+]
 import { signOut } from '@/app/auth/actions'
 
 type Layout = 'split' | 'focus'
@@ -41,6 +49,7 @@ export function EditorClient({
   const [published, setPublished] = useState(initialPublished)
   const [layout, setLayout] = useState<Layout>('split')
   const [mode, setMode] = useState<Mode>('preview')
+  const [section, setSection] = useState<PortfolioSection>('profile')
   const [jsonDraft, setJsonDraft] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonSaving, setJsonSaving] = useState(false)
@@ -306,9 +315,24 @@ export function EditorClient({
         >
           {mode === 'preview' ? (
             <div style={styles.previewFrame}>
-              <div style={styles.previewScale}>
+              <div style={styles.sectionTabs}>
+                {SECTIONS.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setSection(s.key)}
+                    style={{
+                      ...styles.sectionTab,
+                      ...(section === s.key ? styles.sectionTabActive : {}),
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="dark" style={styles.previewScale}>
                 <SwePortfolio
                   content={content}
+                  section={section}
                   editable={!isPlaceholder}
                   onUploadImage={handleProjectImage}
                   uploadingIndex={uploadingProjectIndex}
@@ -666,6 +690,29 @@ const styles = {
   previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
     padding: 24,
+  } as const,
+  sectionTabs: {
+    display: 'flex',
+    gap: 4,
+    marginBottom: 16,
+    padding: 4,
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 10,
+    width: 'fit-content',
+  } as const,
+  sectionTab: {
+    background: 'transparent',
+    color: '#a6a6a6',
+    border: 'none',
+    padding: '6px 14px',
+    borderRadius: 6,
+    fontSize: 13,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  } as const,
+  sectionTabActive: {
+    background: 'rgba(255,255,255,0.1)',
+    color: '#fff',
   } as const,
   previewScale: {
     transformOrigin: 'top left',
