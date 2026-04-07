@@ -1,3 +1,5 @@
+'use client'
+
 import type { Content, Experience, Project } from '@/lib/content/schema'
 
 // SWE v1 template. Pure server component — no props beyond the validated
@@ -69,6 +71,41 @@ const styles = {
     borderRadius: 12,
     padding: 28,
     boxShadow: 'rgba(0, 153, 255, 0.15) 0px 0px 0px 1px',
+    position: 'relative',
+  } as const,
+  cardScreenshot: {
+    width: '100%',
+    aspectRatio: '16 / 10',
+    objectFit: 'cover',
+    borderRadius: 8,
+    marginBottom: 18,
+    display: 'block',
+    background: 'rgba(255,255,255,0.03)',
+  } as const,
+  cardScreenshotPlaceholder: {
+    width: '100%',
+    aspectRatio: '16 / 10',
+    borderRadius: 8,
+    marginBottom: 18,
+    background: 'rgba(255,255,255,0.03)',
+    border: '1.5px dashed rgba(255,255,255,0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#666',
+    fontSize: 13,
+    cursor: 'pointer',
+  } as const,
+  cardImageUploading: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    fontSize: 14,
   } as const,
   cardTitle: {
     fontFamily: "'Inter Variable', sans-serif",
@@ -167,9 +204,52 @@ function formatDates(start: string, end: string | undefined): string {
   return end ? `${start} — ${end}` : `${start} — Present`
 }
 
-function ProjectCard({ project }: { project: Project }) {
+type ProjectCardProps = {
+  project: Project
+  projectIndex: number
+  editable?: boolean
+  onUploadImage?: (index: number, file: File) => void
+  uploadingIndex?: number | null
+}
+
+function ProjectCard({
+  project,
+  projectIndex,
+  editable = false,
+  onUploadImage,
+  uploadingIndex,
+}: ProjectCardProps) {
+  const isUploading = editable && uploadingIndex === projectIndex
+
+  const image =
+    project.screenshot ? (
+      // Plain <img> keeps this component renderable by the public page and the
+      // editor preview without next/image domain config headaches.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={project.screenshot}
+        alt={project.screenshot_alt ?? `${project.title} screenshot`}
+        style={styles.cardScreenshot}
+      />
+    ) : editable ? (
+      <label style={styles.cardScreenshotPlaceholder}>
+        <span>+ Add screenshot</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f && onUploadImage) onUploadImage(projectIndex, f)
+            e.target.value = ''
+          }}
+        />
+      </label>
+    ) : null
+
   const body = (
     <>
+      {image}
       <div style={styles.cardTitle}>{project.title}</div>
       <div style={styles.cardDesc}>{project.description}</div>
       {project.tech.length > 0 && (
@@ -181,10 +261,35 @@ function ProjectCard({ project }: { project: Project }) {
           ))}
         </div>
       )}
+      {editable && project.screenshot && (
+        <label
+          style={{
+            ...styles.tag,
+            marginTop: 12,
+            display: 'inline-block',
+            cursor: 'pointer',
+          }}
+        >
+          Replace screenshot
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f && onUploadImage) onUploadImage(projectIndex, f)
+              e.target.value = ''
+            }}
+          />
+        </label>
+      )}
+      {isUploading && <div style={styles.cardImageUploading}>Uploading…</div>}
     </>
   )
-  // If there's a URL, the whole card is a link. Otherwise plain div.
-  if (project.url) {
+
+  // In editable mode the whole card can't be a link (it has interactive
+  // children). Only wrap as anchor in the read-only render path.
+  if (project.url && !editable) {
     return (
       <a
         href={project.url}
@@ -212,7 +317,17 @@ function ExperienceRow({ exp }: { exp: Experience }) {
   )
 }
 
-export function SwePortfolio({ content }: { content: Content }) {
+export function SwePortfolio({
+  content,
+  editable = false,
+  onUploadImage,
+  uploadingIndex = null,
+}: {
+  content: Content
+  editable?: boolean
+  onUploadImage?: (index: number, file: File) => void
+  uploadingIndex?: number | null
+}) {
   const hasProjects = content.projects.length > 0
   const hasExperience = content.experience.length > 0
   const linkEntries = Object.entries(content.links).filter(
@@ -232,8 +347,15 @@ export function SwePortfolio({ content }: { content: Content }) {
               Projects
             </h2>
             <div style={styles.projectsGrid}>
-              {content.projects.map((p) => (
-                <ProjectCard key={p.title} project={p} />
+              {content.projects.map((p, i) => (
+                <ProjectCard
+                  key={`${p.title}-${i}`}
+                  project={p}
+                  projectIndex={i}
+                  editable={editable}
+                  onUploadImage={onUploadImage}
+                  uploadingIndex={uploadingIndex}
+                />
               ))}
             </div>
           </section>
