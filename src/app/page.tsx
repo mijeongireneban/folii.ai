@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 export default function Home() {
   return (
@@ -8,9 +9,9 @@ export default function Home() {
       <p className="max-w-xl text-lg text-muted-foreground">
         Build a developer portfolio by prompting. The template is done. You bring the words.
       </p>
-      <Button asChild size="lg">
-        <Link href="/login">Get started</Link>
-      </Button>
+      <Link href="/login" className={cn(buttonVariants({ size: 'lg' }))}>
+        Get started
+      </Link>
     </main>
   )
 }
