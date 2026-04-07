@@ -1,6 +1,7 @@
 import { MODEL, openai } from './client'
 import { CHAT_EDIT_SYSTEM, renderChatEditUserMessage } from './prompts'
 import { contentSchema, type Content } from '@/lib/content/schema'
+import { coerceContent } from './coerce'
 
 export type ChatEditResult =
   | { ok: true; content: Content; needsInfo?: string }
@@ -57,6 +58,8 @@ export async function chatEdit(
     if (typeof maybe === 'string') needsInfo = maybe
     delete (parsed as { _needs_info?: unknown })._needs_info
   }
+
+  parsed = coerceContent(parsed)
 
   const result = contentSchema.safeParse(parsed)
   if (!result.success) {

@@ -1,6 +1,7 @@
 import { MODEL, openai } from './client'
 import { PARSE_RESUME_SYSTEM, renderParseResumeUserMessage } from './prompts'
 import { contentSchema, type Content } from '@/lib/content/schema'
+import { coerceContent } from './coerce'
 
 export type ParseResumeResult =
   | { ok: true; content: Content }
@@ -65,6 +66,9 @@ export async function parseResume(
   ) {
     return { ok: false, reason: 'not_a_resume' }
   }
+
+  // Coerce common LLM mis-shapings before schema validation.
+  parsed = coerceContent(parsed)
 
   const result = contentSchema.safeParse(parsed)
   if (!result.success) {

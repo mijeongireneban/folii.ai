@@ -18,6 +18,33 @@ Rules:
 - Keep strings inside the schema length caps (name<=80, tagline<=120, bio<=1200, impact<=240, description<=400).
 - Do not include any field named icon, banner_image, or illustration. The template has no decorative image slots.
 
+REQUIRED SHAPE (exactly these keys, no others):
+{
+  "name": "string",
+  "tagline": "string",
+  "bio": "string",
+  "links": {
+    "github": "https://... (optional)",
+    "twitter": "https://... (optional)",
+    "linkedin": "https://... (optional)",
+    "website": "https://... (optional)"
+  },
+  "experience": [
+    { "company": "string", "role": "string", "start": "string", "end": "string (optional)", "impact": "string" }
+  ],
+  "projects": [
+    { "title": "string", "description": "string", "tech": ["string"], "url": "https://... (optional)", "repo": "https://... (optional)" }
+  ],
+  "education": [
+    { "school": "string", "degree": "string", "year": "string" }
+  ]
+}
+
+Important:
+- "links" is an OBJECT keyed by platform, never an array. If you only see bare domains like "github.com/maya", prepend "https://" so they are valid URLs.
+- "education" entries must have school, degree, and year. If you cannot fill all three, omit the entry entirely.
+- Omit the "education" key altogether if the resume has no education section.
+
 If the input is not a resume or is unreadable, return:
 {"error": "not_a_resume"}`
 
