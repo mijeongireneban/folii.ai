@@ -20,17 +20,24 @@ export function EditorShell(props: Props) {
   const refreshPreview = () => setPreviewKey((k) => k + 1)
 
   return (
-    <div className="grid h-screen grid-cols-[60%_40%]">
-      <PreviewPane username={username} content={content} previewKey={previewKey} />
-      <RightPane
-        portfolioId={props.portfolioId}
-        username={username}
-        content={content}
-        published={published}
-        onContentChange={(c) => { setContent(c); refreshPreview() }}
-        onUsernameChange={setUsername}
-        onPublishedChange={setPublished}
-      />
-    </div>
+    <>
+      <div className="flex h-screen items-center justify-center p-6 text-center md:hidden">
+        <p className="text-sm text-muted-foreground">
+          The folii.ai editor is desktop-only for now. Open this page on a larger screen.
+        </p>
+      </div>
+      <div className="hidden h-screen grid-cols-[60%_40%] md:grid">
+        <PreviewPane username={username} content={content} previewKey={previewKey} />
+        <RightPane
+          portfolioId={props.portfolioId}
+          username={username}
+          content={content}
+          published={published}
+          onContentChange={(c) => { setContent(c); refreshPreview() }}
+          onUsernameChange={setUsername}
+          onPublishedChange={setPublished}
+        />
+      </div>
+    </>
   )
 }
