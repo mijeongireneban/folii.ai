@@ -20,6 +20,12 @@ interface ExperienceListProps {
 export function ExperienceList({ experience, username }: ExperienceListProps) {
   return (
     <div className="w-full max-w-4xl">
+      <h2 className="text-2xl font-bold tracking-tight mb-6">Experience</h2>
+      {experience.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No experience yet — add some via the chat.
+        </p>
+      ) : (
       <Accordion className="space-y-4">
         {experience.map((exp, index) => (
           <AccordionItem
@@ -130,6 +136,7 @@ export function ExperienceList({ experience, username }: ExperienceListProps) {
           </AccordionItem>
         ))}
       </Accordion>
+      )}
     </div>
   )
 }

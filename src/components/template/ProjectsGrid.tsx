@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -15,28 +14,18 @@ interface ProjectsGridProps {
 }
 
 export function ProjectsGrid({ projects, username }: ProjectsGridProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch =
-      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesSearch
-  })
-
   return (
     <div className="w-full max-w-3xl">
       <div className="bg-card rounded-xl border p-6">
-        {/* Results count */}
-        <div className="text-muted-foreground mb-4 text-xs">
-          {filteredProjects.length} of {projects.length} projects
-        </div>
-
-        {/* Grid */}
-        {filteredProjects.length > 0 ? (
+        {projects.length === 0 ? (
+          <div className="border-muted-foreground/10 my-6 rounded-lg border-2 border-dashed py-12 text-center">
+            <p className="text-muted-foreground text-sm font-medium">
+              No projects yet — add some via the chat.
+            </p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {filteredProjects.map((project) => (
+            {projects.map((project) => (
               <Card key={project.id} className="group gap-4 overflow-hidden pt-0 flex flex-col">
                 {project.image && (
                   <div className="relative aspect-video overflow-hidden">
@@ -83,20 +72,6 @@ export function ProjectsGrid({ projects, username }: ProjectsGridProps) {
                 </CardFooter>
               </Card>
             ))}
-          </div>
-        ) : (
-          <div className="border-muted-foreground/10 my-6 rounded-lg border-2 border-dashed py-12 text-center">
-            <p className="text-muted-foreground text-sm font-medium">
-              No projects found matching your criteria
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => setSearchQuery('')}
-            >
-              Clear filters
-            </Button>
           </div>
         )}
       </div>

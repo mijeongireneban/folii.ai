@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Mail } from 'lucide-react'
+import { Mail, Code2, Briefcase, MessageCircle, Globe } from 'lucide-react'
 import type { Content } from '@/lib/schemas/content'
 
 interface ContactSectionProps {
@@ -10,8 +10,11 @@ interface ContactSectionProps {
 }
 
 export function ContactSection({ contact }: ContactSectionProps) {
+  const hasContent = contact.email || contact.message
+
   return (
     <div className="w-full max-w-sm">
+      <h2 className="text-2xl font-bold tracking-tight mb-6">Contact</h2>
       <Card>
         <CardHeader>
           <CardTitle>Get in Touch</CardTitle>
@@ -20,7 +23,7 @@ export function ContactSection({ contact }: ContactSectionProps) {
           {contact.message && (
             <p className="text-muted-foreground text-sm">{contact.message}</p>
           )}
-          {contact.email && (
+          {contact.email ? (
             <Button
               variant="outline"
               className="w-full justify-start gap-3"
@@ -29,7 +32,11 @@ export function ContactSection({ contact }: ContactSectionProps) {
               <Mail className="h-4 w-4 text-muted-foreground" />
               {contact.email}
             </Button>
-          )}
+          ) : !hasContent ? (
+            <p className="text-muted-foreground text-sm">
+              No contact info yet — add some via the chat.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>
