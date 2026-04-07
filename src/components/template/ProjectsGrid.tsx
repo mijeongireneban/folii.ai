@@ -1,11 +1,10 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { ExternalLink } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 import type { Content } from '@/lib/schemas/content'
 
 interface ProjectsGridProps {
@@ -51,13 +50,12 @@ export function ProjectsGrid({ projects, username }: ProjectsGridProps) {
                 </CardContent>
                 <CardFooter className="px-4 flex justify-end gap-2 mt-auto">
                   {project.caseStudy && (
-                    <Link
-                      href={`/${username}/projects/${project.id}`}
-                      className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
-                    >
-                      <span>Case Study</span>
-                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                    </Link>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href={`/${username}/projects/${project.id}`}>
+                        <span>Case Study</span>
+                        <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
                   )}
                   {project.caseStudy?.link && project.caseStudy.link !== '#' && (
                     <Button

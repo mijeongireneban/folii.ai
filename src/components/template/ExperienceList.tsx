@@ -26,7 +26,7 @@ export function ExperienceList({ experience, username }: ExperienceListProps) {
           No experience yet — add some via the chat.
         </p>
       ) : (
-      <Accordion className="space-y-4">
+      <Accordion type="single" collapsible className="space-y-4">
         {experience.map((exp, index) => (
           <AccordionItem
             key={index}

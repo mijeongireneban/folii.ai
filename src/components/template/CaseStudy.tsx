@@ -1,10 +1,9 @@
 'use client'
 
 import { ArrowRight } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
 import type { Content } from '@/lib/schemas/content'
 
 type Project = Content['projects'][number]
@@ -143,15 +142,16 @@ export function CaseStudy({ project, caseStudy }: CaseStudyProps) {
           </div>
         </div>
         {caseStudy.link !== '#' && (
-          <a
-            href={caseStudy.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ size: 'lg' }), 'inline-flex items-center gap-2')}
-          >
-            View Full Case Study
-            <ArrowRight className="h-4 w-4" />
-          </a>
+          <Button asChild size="lg">
+            <a
+              href={caseStudy.link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View Full Case Study
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </Button>
         )}
       </div>
     </div>
