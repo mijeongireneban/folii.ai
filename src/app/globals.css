@@ -1,0 +1,64 @@
+/* Fontsource: self-hosted, no CDN */
+@import '@fontsource-variable/inter';
+@import '@fontsource/azeret-mono/400.css';
+
+/* Cabinet Grotesk Medium — self-hosted from public/fonts/cabinet-grotesk/
+   Downloaded from Fontshare (free license). */
+@font-face {
+  font-family: 'Cabinet Grotesk';
+  src: url('/fonts/cabinet-grotesk/CabinetGrotesk-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* DESIGN.md tokens — do not edit without updating DESIGN.md */
+:root {
+  --folii-bg: #000000;
+  --folii-text: #ffffff;
+  --folii-muted: #a6a6a6;
+  --folii-frost: rgba(255, 255, 255, 0.1);
+  --folii-frost-strong: rgba(255, 255, 255, 0.16);
+  --folii-blue: #0099ff;
+  --folii-ring: rgba(0, 153, 255, 0.15);
+  --folii-ring-strong: rgba(0, 153, 255, 0.35);
+  --folii-font-display: 'Cabinet Grotesk', 'Inter Variable', -apple-system,
+    sans-serif;
+  --folii-font-body: 'Inter Variable', -apple-system, system-ui, sans-serif;
+  --folii-font-mono: 'Azeret Mono', ui-monospace, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--folii-bg);
+  color: var(--folii-text);
+  font-family: var(--folii-font-body);
+  /* DESIGN.md §3: OpenType feature maximalism on Inter */
+  font-feature-settings: 'cv01', 'cv05', 'cv09', 'cv11', 'ss03', 'ss07';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--folii-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
