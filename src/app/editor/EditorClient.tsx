@@ -8,7 +8,8 @@ import { SwePortfolio } from '@/components/template/SwePortfolio'
 import { signOut } from '@/app/auth/actions'
 
 type Layout = 'split' | 'focus'
-type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at'>
+type Mode = 'preview' | 'json'
+type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'>
 
 const LAYOUT_KEY = 'folii:editor:layout'
 
@@ -34,10 +35,17 @@ export function EditorClient({
       role: m.role,
       content: m.content,
       created_at: m.created_at,
+      content_after: m.content_after,
     }))
   )
   const [published, setPublished] = useState(initialPublished)
   const [layout, setLayout] = useState<Layout>('split')
+  const [mode, setMode] = useState<Mode>('preview')
+  const [jsonDraft, setJsonDraft] = useState('')
+  const [jsonError, setJsonError] = useState<string | null>(null)
+  const [jsonSaving, setJsonSaving] = useState(false)
+  const [reverting, setReverting] = useState<string | null>(null)
+  const [uploadingProjectIndex, setUploadingProjectIndex] = useState<number | null>(null)
   const [input, setInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -102,6 +110,7 @@ export function EditorClient({
         role: 'user',
         content: text,
         created_at: new Date().toISOString(),
+        content_after: null,
       },
     ])
 
@@ -117,6 +126,7 @@ export function EditorClient({
         return
       }
       setContent(json.content)
+      setIsPlaceholder(false)
       setMessages((m) => [
         ...m,
         {
@@ -124,9 +134,122 @@ export function EditorClient({
           role: 'assistant',
           content: json.message.content,
           created_at: json.message.created_at,
+          content_after: json.content,
         },
       ])
     })
+  }
+
+  async function handleRevert(messageId: string) {
+    setReverting(messageId)
+    setChatError(null)
+    try {
+      const res = await fetch('/api/revert', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messageId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setChatError(json.error ?? 'revert_failed')
+        return
+      }
+      setContent(json.content)
+      setIsPlaceholder(false)
+      setMessages((m) => [
+        ...m,
+        {
+          id: json.message.id,
+          role: 'assistant',
+          content: json.message.content,
+          created_at: json.message.created_at,
+          content_after: json.content,
+        },
+      ])
+    } finally {
+      setReverting(null)
+    }
+  }
+
+  async function handleProjectImage(projectIndex: number, file: File) {
+    if (isPlaceholder) {
+      setChatError('Upload your resume or describe your portfolio first.')
+      return
+    }
+    setUploadingProjectIndex(projectIndex)
+    setChatError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('projectIndex', String(projectIndex))
+      const res = await fetch('/api/upload/project-image', {
+        method: 'POST',
+        body: form,
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setChatError(json.error ?? 'image_upload_failed')
+        return
+      }
+      setContent(json.content)
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : 'image_upload_failed')
+    } finally {
+      setUploadingProjectIndex(null)
+    }
+  }
+
+  function enterJsonMode() {
+    setJsonDraft(JSON.stringify(content, null, 2))
+    setJsonError(null)
+    setMode('json')
+  }
+
+  async function handleJsonSave() {
+    setJsonSaving(true)
+    setJsonError(null)
+    try {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(jsonDraft)
+      } catch (err) {
+        setJsonError(`Invalid JSON: ${err instanceof Error ? err.message : 'parse error'}`)
+        return
+      }
+      const res = await fetch('/api/content', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(parsed),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        if (json.issues) {
+          setJsonError(
+            json.issues
+              .map((i: { path: string; message: string }) => `${i.path || 'root'}: ${i.message}`)
+              .join('; ')
+          )
+        } else {
+          setJsonError(json.error ?? 'save_failed')
+        }
+        return
+      }
+      setContent(json.content)
+      setIsPlaceholder(false)
+      setMessages((m) => [
+        ...m,
+        {
+          id: json.message.id,
+          role: 'assistant',
+          content: json.message.content,
+          created_at: json.message.created_at,
+          content_after: json.content,
+        },
+      ])
+      setMode('preview')
+    } finally {
+      setJsonSaving(false)
+    }
   }
 
   async function handlePublishToggle() {
@@ -159,6 +282,9 @@ export function EditorClient({
         username={username}
         layout={layout}
         onLayoutChange={setLayout}
+        mode={mode}
+        onEnterJson={enterJsonMode}
+        onExitJson={() => setMode('preview')}
         published={published}
         onPublishToggle={handlePublishToggle}
         onUploadClick={() => fileInputRef.current?.click()}
@@ -178,11 +304,44 @@ export function EditorClient({
             ...(layout === 'focus' ? styles.previewPaneFocus : {}),
           }}
         >
-          <div style={styles.previewFrame}>
-            <div style={styles.previewScale}>
-              <SwePortfolio content={content} />
+          {mode === 'preview' ? (
+            <div style={styles.previewFrame}>
+              <div style={styles.previewScale}>
+                <SwePortfolio
+                  content={content}
+                  editable={!isPlaceholder}
+                  onUploadImage={handleProjectImage}
+                  uploadingIndex={uploadingProjectIndex}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={styles.jsonFrame}>
+              <textarea
+                value={jsonDraft}
+                onChange={(e) => setJsonDraft(e.target.value)}
+                spellCheck={false}
+                style={styles.jsonTextarea}
+              />
+              {jsonError && <p style={styles.error}>{jsonError}</p>}
+              <div style={styles.jsonActions}>
+                <button
+                  onClick={() => setMode('preview')}
+                  style={styles.ghostBtn}
+                  disabled={jsonSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleJsonSave}
+                  style={styles.sendBtn}
+                  disabled={jsonSaving}
+                >
+                  {jsonSaving ? 'Saving…' : 'Save JSON'}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Chat */}
@@ -203,17 +362,30 @@ export function EditorClient({
             {uploadError && (
               <p style={styles.error}>Upload failed: {uploadError}</p>
             )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  ...styles.msg,
-                  ...(m.role === 'user' ? styles.msgUser : styles.msgAssistant),
-                }}
-              >
-                {m.content}
-              </div>
-            ))}
+            {messages.map((m) => {
+              const canRevert =
+                m.role === 'assistant' && !!m.content_after && !m.id.startsWith('tmp-')
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    ...styles.msg,
+                    ...(m.role === 'user' ? styles.msgUser : styles.msgAssistant),
+                  }}
+                >
+                  <div>{m.content}</div>
+                  {canRevert && (
+                    <button
+                      onClick={() => handleRevert(m.id)}
+                      disabled={reverting === m.id}
+                      style={styles.revertBtn}
+                    >
+                      {reverting === m.id ? 'Undoing…' : '↶ Undo this edit'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
             {isPending && <div style={styles.thinking}>Thinking…</div>}
             {chatError && <p style={styles.error}>{chatError}</p>}
           </div>
@@ -243,6 +415,9 @@ function TopBar({
   username,
   layout,
   onLayoutChange,
+  mode,
+  onEnterJson,
+  onExitJson,
   published,
   onPublishToggle,
   onUploadClick,
@@ -251,6 +426,9 @@ function TopBar({
   username: string
   layout?: Layout
   onLayoutChange?: (l: Layout) => void
+  mode?: Mode
+  onEnterJson?: () => void
+  onExitJson?: () => void
   published?: boolean
   onPublishToggle?: () => void
   onUploadClick?: () => void
@@ -267,6 +445,14 @@ function TopBar({
             style={styles.ghostBtn}
           >
             {uploading ? 'Parsing…' : 'Upload resume'}
+          </button>
+        )}
+        {mode && onEnterJson && onExitJson && (
+          <button
+            onClick={mode === 'json' ? onExitJson : onEnterJson}
+            style={styles.ghostBtn}
+          >
+            {mode === 'json' ? 'Preview' : '{ } JSON'}
           </button>
         )}
         {layout && onLayoutChange && (
@@ -581,4 +767,45 @@ const styles = {
   dropzoneHint: { fontSize: 13, color: '#666' } as const,
 
   error: { fontSize: 13, color: '#ff6b6b' } as const,
+
+  revertBtn: {
+    marginTop: 8,
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.12)',
+    color: '#a6a6a6',
+    borderRadius: 100,
+    padding: '4px 10px',
+    fontSize: 11,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  } as const,
+
+  jsonFrame: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: 24,
+    height: '100%',
+    minHeight: 0,
+  } as const,
+  jsonTextarea: {
+    flex: 1,
+    minHeight: 400,
+    background: '#0a0a0a',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    color: '#fff',
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    fontSize: 13,
+    lineHeight: 1.5,
+    resize: 'vertical',
+    outline: 'none',
+  } as const,
+  jsonActions: {
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'flex-end',
+  } as const,
 }
