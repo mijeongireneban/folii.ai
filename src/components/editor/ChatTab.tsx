@@ -19,6 +19,19 @@ export function ChatTab({
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [busy, setBusy] = useState(false)
 
+  async function onFile(file: File) {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch('/api/upload', { method: 'POST', body: form })
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'upload failed' }))
+      setMsgs((m) => [...m, { role: 'assistant', text: `upload error: ${error}` }])
+      return
+    }
+    const { url } = await res.json()
+    setInput((prev) => prev + `\nUse this image URL: ${url}`)
+  }
+
   async function send() {
     if (!input.trim() || busy) return
     const userText = input.trim()
@@ -59,7 +72,18 @@ export function ChatTab({
           placeholder="Tell folii what to change…"
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
         />
-        <Button onClick={send} disabled={busy}>{busy ? '…' : 'Send'}</Button>
+        <div className="flex flex-col gap-1">
+          <Button onClick={send} disabled={busy}>{busy ? '…' : 'Send'}</Button>
+          <label className="text-xs text-muted-foreground cursor-pointer text-center">
+            Image
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+            />
+          </label>
+        </div>
       </div>
     </div>
   )
