@@ -44,6 +44,21 @@ export type Database = {
           Pick<Site, 'template' | 'content' | 'published' | 'published_at'>
         >
       }
+      chat_messages: {
+        Row: ChatMessage
+        Insert: Pick<ChatMessage, 'site_id' | 'role' | 'content'> &
+          Partial<Pick<ChatMessage, 'id' | 'content_after' | 'created_at'>>
+        Update: Partial<Pick<ChatMessage, 'content' | 'content_after'>>
+      }
     }
   }
+}
+
+export type ChatMessage = {
+  id: string
+  site_id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  content_after: Content | null
+  created_at: string
 }
