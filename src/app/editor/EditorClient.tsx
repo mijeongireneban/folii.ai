@@ -8,7 +8,7 @@ import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePo
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
 import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
 import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
 
@@ -390,7 +390,7 @@ export function EditorClient({
                 <CodeMirror
                   value={jsonDraft}
                   onChange={(v) => setJsonDraft(v)}
-                  extensions={[jsonLang()]}
+                  extensions={[jsonLang(), EditorView.lineWrapping]}
                   theme={oneDark}
                   height="100%"
                   style={{ height: '100%', fontSize: 13 }}
@@ -750,6 +750,7 @@ const styles = {
     background: '#050505',
     borderRight: '1px solid rgba(255,255,255,0.06)',
     display: 'flex',
+    minWidth: 0,
   } as const,
   previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
