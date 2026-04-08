@@ -13,7 +13,7 @@ When any skill (office-hours, plan-eng-review, ship, etc.) refers to "the base b
 ## Dev notes
 
 - Package manager: **pnpm** (never npm/yarn).
-- No test framework. Use `pnpm exec tsc --noEmit` as the proxy check before shipping.
+- Tests: `pnpm test` (vitest, `passWithNoTests`). Also run `pnpm exec tsc --noEmit` before shipping.
 - Hydration mismatches after className edits are usually stale Turbopack cache. Fix: `rm -rf .next` and restart `pnpm dev`.
 - `src/lib/content/placeholder.ts` only seeds fresh rows. Existing users read `sites.content` from Supabase, so placeholder edits won't show until the user hits Reset (`DELETE /api/content`).
 - `min-h-full` / `flex-1` only resolve if the full parent chain is `flex flex-col` with a defined height. When centering breaks, check `[username]/layout.tsx` → `TemplateLayout` → inner wrapper chain.
