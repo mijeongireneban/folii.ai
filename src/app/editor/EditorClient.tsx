@@ -7,7 +7,7 @@ import type { ChatMessage } from '@/lib/supabase/types'
 import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
 import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
-import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2 } from 'lucide-react'
+import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2, RotateCcw, ArrowUp } from 'lucide-react'
 import { useFormStatus } from 'react-dom'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { json as jsonLang } from '@codemirror/lang-json'
@@ -57,6 +57,10 @@ export function EditorClient({
   )
   const [published, setPublished] = useState(initialPublished)
   const [publishing, setPublishing] = useState(false)
+  // True when content has changed since the last successful publish, so the
+  // currently-live site is out of date. Used to swap the button to "Republish".
+  const [publishDirty, setPublishDirty] = useState(false)
+  const skipDirtyRef = useRef(true)
   const [resetting, setResetting] = useState(false)
   const [layout, setLayout] = useState<Layout>('split')
   const [mode, setMode] = useState<Mode>('preview')
@@ -328,9 +332,24 @@ export function EditorClient({
     }
   }
 
+  // Mark the live site as stale whenever content changes after the initial
+  // mount, but only while published. Skip the very first effect run so the
+  // initial hydration of `content` doesn't immediately flip the flag.
+  useEffect(() => {
+    if (skipDirtyRef.current) {
+      skipDirtyRef.current = false
+      return
+    }
+    if (published) setPublishDirty(true)
+  }, [content, published])
+
   async function handlePublishToggle() {
     if (publishing) return
-    const next = !published
+    // If published and dirty → republish (POST published:true again).
+    // If published and clean → unpublish.
+    // If not published → publish.
+    const republishing = published && publishDirty
+    const next = republishing ? true : !published
     setPublishing(true)
     try {
       const res = await fetch('/api/publish', {
@@ -338,7 +357,10 @@ export function EditorClient({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ published: next }),
       })
-      if (res.ok) setPublished(next)
+      if (res.ok) {
+        setPublished(next)
+        setPublishDirty(false)
+      }
     } finally {
       setPublishing(false)
     }
@@ -367,6 +389,7 @@ export function EditorClient({
         onEnterJson={enterJsonMode}
         onExitJson={() => setMode('preview')}
         published={published}
+        publishDirty={publishDirty}
         publishing={publishing}
         onPublishToggle={handlePublishToggle}
         onUploadClick={() => fileInputRef.current?.click()}
@@ -389,6 +412,15 @@ export function EditorClient({
             ...(layout === 'focus' ? styles.previewPaneFocus : {}),
           }}
         >
+          {uploading && (
+            <div style={styles.parsingOverlay}>
+              <Loader2 size={28} className="animate-spin" />
+              <div>Parsing your resume…</div>
+              <div style={styles.parsingHint}>
+                Pulling out your experience, projects, and skills.
+              </div>
+            </div>
+          )}
           {mode === 'preview' ? (
             <div
               style={{
@@ -463,11 +495,8 @@ export function EditorClient({
                 <button
                   onClick={handleJsonSave}
                   style={{
-                    ...styles.sendBtn,
+                    ...styles.primaryBtn,
                     ...(jsonSaving ? styles.btnBusy : {}),
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
                   }}
                   disabled={jsonSaving}
                 >
@@ -486,6 +515,37 @@ export function EditorClient({
             ...(layout === 'focus' ? styles.chatPaneFocus : {}),
           }}
         >
+          {(() => {
+            const lastRevertable = [...messages]
+              .reverse()
+              .find(
+                (m) =>
+                  m.role === 'assistant' &&
+                  !!m.content_after &&
+                  !m.id.startsWith('tmp-'),
+              )
+            return (
+              <div style={styles.chatHeader}>
+                <span style={styles.chatHeaderLabel}>
+                  CHAT · REFINE YOUR PORTFOLIO
+                </span>
+                <button
+                  type="button"
+                  onClick={() => lastRevertable && handleRevert(lastRevertable.id)}
+                  disabled={!lastRevertable || reverting === lastRevertable?.id}
+                  style={{
+                    ...styles.revertLastBtn,
+                    ...(!lastRevertable ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
+                  }}
+                >
+                  <RotateCcw size={12} />
+                  {reverting && lastRevertable && reverting === lastRevertable.id
+                    ? 'Reverting…'
+                    : 'Revert last'}
+                </button>
+              </div>
+            )
+          })()}
           <div ref={chatScrollRef} style={styles.chatScroll}>
             {messages.length === 0 && (
               <p style={styles.hint}>
@@ -498,26 +558,17 @@ export function EditorClient({
               <p style={styles.error}>Upload failed: {uploadError}</p>
             )}
             {messages.map((m) => {
-              const canRevert =
-                m.role === 'assistant' && !!m.content_after && !m.id.startsWith('tmp-')
+              const isUser = m.role === 'user'
               return (
                 <div
                   key={m.id}
                   style={{
                     ...styles.msg,
-                    ...(m.role === 'user' ? styles.msgUser : styles.msgAssistant),
+                    ...(isUser ? styles.msgUser : styles.msgAssistant),
                   }}
                 >
+                  {!isUser && <div style={styles.msgLabel}>FOLII</div>}
                   <div>{m.content}</div>
-                  {canRevert && (
-                    <button
-                      onClick={() => handleRevert(m.id)}
-                      disabled={reverting === m.id}
-                      style={styles.revertBtn}
-                    >
-                      {reverting === m.id ? 'Undoing…' : '↶ Undo this edit'}
-                    </button>
-                  )}
                 </div>
               )
             })}
@@ -529,28 +580,68 @@ export function EditorClient({
             )}
             {chatError && <p style={styles.error}>{chatError}</p>}
           </div>
+          {(() => {
+            // Context-aware prompt chips so users can discover what's editable.
+            // Pick up to 4, prioritizing the gaps in their current content.
+            const s: string[] = []
+            if (isPlaceholder) {
+              s.push(
+                'I\'m a staff engineer at Acme building developer tools',
+                'Use a more playful tone',
+              )
+            } else {
+              if ((content.projects?.length ?? 0) === 0) {
+                s.push('Add a project I shipped recently')
+              } else if ((content.projects?.length ?? 0) < 3) {
+                s.push('Add another project')
+              }
+              if (!content.location) s.push('Set my location to San Francisco')
+              if (!content.links?.github) s.push('Add my GitHub link')
+              if ((content.bio?.length ?? 0) > 500) s.push('Tighten the bio')
+              s.push('What should I improve?')
+            }
+            const suggestions = s.slice(0, 4)
+            if (suggestions.length === 0 || isPending) return null
+            return (
+              <div style={styles.suggestions}>
+                {suggestions.map((text) => (
+                  <button
+                    key={text}
+                    type="button"
+                    onClick={() => setInput(text)}
+                    style={styles.suggestionChip}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
           <form onSubmit={handleSend} style={styles.chatForm}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe a change…"
-              style={styles.chatInput}
-              disabled={isPending}
-            />
-            <button
-              type="submit"
-              style={{
-                ...styles.sendBtn,
-                ...(isPending ? styles.btnBusy : {}),
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-              disabled={isPending || !input.trim()}
-            >
-              {isPending && <Loader2 size={14} className="animate-spin" />}
-              Send
-            </button>
+            <div style={styles.chatInputWrap}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Tell folii what to change…"
+                style={styles.chatInput}
+                disabled={isPending}
+              />
+              <button
+                type="submit"
+                style={{
+                  ...styles.sendBtn,
+                  ...(isPending || !input.trim() ? styles.btnBusy : {}),
+                }}
+                disabled={isPending || !input.trim()}
+                aria-label="Send"
+              >
+                {isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ArrowUp size={16} />
+                )}
+              </button>
+            </div>
           </form>
         </aside>
       </div>
@@ -778,6 +869,7 @@ function TopBar({
   onEnterJson,
   onExitJson,
   published,
+  publishDirty,
   publishing,
   onPublishToggle,
   onUploadClick,
@@ -793,6 +885,7 @@ function TopBar({
   onEnterJson?: () => void
   onExitJson?: () => void
   published?: boolean
+  publishDirty?: boolean
   publishing?: boolean
   onPublishToggle?: () => void
   onUploadClick?: () => void
@@ -804,7 +897,9 @@ function TopBar({
   return (
     <header style={styles.topbar}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={styles.brand}>folii.ai</div>
+        <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
+          folii.ai
+        </a>
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>
       <div style={styles.topbarRight}>
@@ -879,7 +974,11 @@ function TopBar({
               }}
             >
               {publishing && <Loader2 size={14} className="animate-spin" />}
-              {published ? 'Unpublish' : 'Publish'}
+              {published
+                ? publishDirty
+                  ? 'Republish'
+                  : 'Unpublish'
+                : 'Publish'}
             </button>
           </>
         )}
@@ -977,7 +1076,9 @@ function Dropzone({
 
 const styles = {
   main: {
-    minHeight: '100vh',
+    height: '100vh',
+    minHeight: 0,
+    overflow: 'hidden',
     background: '#000',
     color: '#fff',
     display: 'flex',
@@ -1076,11 +1177,32 @@ const styles = {
   workspaceFocus: { gridTemplateColumns: '1fr' } as const,
 
   previewPane: {
+    position: 'relative',
     overflow: 'hidden',
     background: '#050505',
     borderRight: '1px solid rgba(255,255,255,0.06)',
     display: 'flex',
     minWidth: 0,
+  } as const,
+  parsingOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0.55)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    zIndex: 60,
+    color: '#fff',
+    fontSize: 14,
+    pointerEvents: 'all',
+  } as const,
+  parsingHint: {
+    fontSize: 12,
+    color: '#8a8a8a',
   } as const,
   previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
@@ -1144,22 +1266,59 @@ const styles = {
     gap: 12,
   } as const,
   hint: { fontSize: 13, color: '#666', lineHeight: 1.5 } as const,
+  chatHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 20px',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  } as const,
+  chatHeaderLabel: {
+    fontSize: 11,
+    letterSpacing: '0.12em',
+    color: '#8a8a8a',
+    fontWeight: 500,
+  } as const,
+  revertLastBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    color: '#e5e5e5',
+    borderRadius: 100,
+    padding: '6px 12px',
+    fontSize: 12,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  } as const,
   msg: {
     fontSize: 14,
-    lineHeight: 1.5,
-    padding: '10px 14px',
-    borderRadius: 12,
-    maxWidth: '90%',
+    lineHeight: 1.55,
+    maxWidth: '82%',
+  } as const,
+  msgLabel: {
+    fontSize: 10,
+    letterSpacing: '0.14em',
+    color: '#0099ff',
+    fontWeight: 600,
+    marginBottom: 6,
   } as const,
   msgUser: {
     alignSelf: 'flex-end',
-    background: '#0099ff',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.08)',
     color: '#fff',
+    padding: '10px 16px',
+    borderRadius: 18,
   } as const,
   msgAssistant: {
     alignSelf: 'flex-start',
-    background: 'rgba(255,255,255,0.06)',
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.12)',
     color: '#fff',
+    padding: '14px 18px',
+    borderRadius: 14,
   } as const,
   thinking: {
     fontSize: 13,
@@ -1170,31 +1329,59 @@ const styles = {
     gap: 6,
   } as const,
   btnBusy: { opacity: 0.6, cursor: 'wait' } as const,
+  suggestions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    padding: '12px 16px 0',
+  } as const,
+  suggestionChip: {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    color: '#cfcfcf',
+    borderRadius: 100,
+    padding: '6px 12px',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  } as const,
   chatForm: {
     display: 'flex',
-    gap: 8,
     padding: 16,
     borderTop: '1px solid rgba(255,255,255,0.06)',
+  } as const,
+  chatInputWrap: {
+    flex: 1,
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
   } as const,
   chatInput: {
     flex: 1,
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: 100,
-    padding: '10px 16px',
+    padding: '12px 52px 12px 18px',
     color: '#fff',
     fontSize: 14,
     fontFamily: 'inherit',
     outline: 'none',
   } as const,
   sendBtn: {
-    background: '#0099ff',
-    color: '#fff',
+    position: 'absolute',
+    right: 6,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 32,
+    height: 32,
+    background: '#fff',
+    color: '#000',
     border: 'none',
-    borderRadius: 100,
-    padding: '10px 20px',
-    fontSize: 14,
-    fontWeight: 500,
+    borderRadius: '50%',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer',
     fontFamily: 'inherit',
   } as const,
@@ -1255,5 +1442,20 @@ const styles = {
     display: 'flex',
     gap: 8,
     justifyContent: 'flex-end',
+    padding: '12px 0 4px',
+  } as const,
+  primaryBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#0099ff',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 100,
+    padding: '8px 18px',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   } as const,
 }

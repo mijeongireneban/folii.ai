@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { AvatarCropDialog } from '@/components/AvatarCropDialog'
 
 // Profile card — ported from abt-mj/profile.tsx. Every visible field is
 // schema-driven, so other folii users render with the same structure/design
@@ -61,6 +62,7 @@ export function Profile({
   uploadingAvatar?: boolean
 }) {
   const currentTime = useLocalTime(content.timezone)
+  const [pendingAvatar, setPendingAvatar] = useState<File | null>(null)
   const currentRole = content.experience[0]
   const subtitle = currentRole
     ? `${currentRole.role} @ ${currentRole.company}`
@@ -103,7 +105,7 @@ export function Profile({
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0]
-                      if (f && onUploadAvatar) onUploadAvatar(f)
+                      if (f) setPendingAvatar(f)
                       e.target.value = ''
                     }}
                   />
@@ -237,6 +239,16 @@ export function Profile({
           </CardFooter>
         )}
       </Card>
+      {pendingAvatar && (
+        <AvatarCropDialog
+          file={pendingAvatar}
+          onCancel={() => setPendingAvatar(null)}
+          onConfirm={(cropped) => {
+            setPendingAvatar(null)
+            onUploadAvatar?.(cropped)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -15,8 +15,12 @@ function getOrigin(h: Headers): string {
 export async function signUp(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim()
   const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirm_password') ?? '')
   if (!email || !password) {
     redirect('/auth/signup?error=missing')
+  }
+  if (password !== confirmPassword) {
+    redirect('/auth/signup?error=Passwords%20do%20not%20match')
   }
 
   const supabase = await createClient()
@@ -78,5 +82,5 @@ export async function resetPassword(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/')
+  redirect('/auth/login')
 }
