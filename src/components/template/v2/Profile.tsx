@@ -49,7 +49,17 @@ function useLocalTime(tz: string | undefined) {
   return t
 }
 
-export function Profile({ content }: { content: Content }) {
+export function Profile({
+  content,
+  editable = false,
+  onUploadAvatar,
+  uploadingAvatar = false,
+}: {
+  content: Content
+  editable?: boolean
+  onUploadAvatar?: (file: File) => void
+  uploadingAvatar?: boolean
+}) {
   const currentTime = useLocalTime(content.timezone)
   const currentRole = content.experience[0]
   const subtitle = currentRole
@@ -74,13 +84,31 @@ export function Profile({ content }: { content: Content }) {
       <Card className="flex h-full flex-col">
         <CardHeader className="pb-0">
           <div className="flex items-start justify-between">
-            <div className="bg-card relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full">
+            <div className="bg-card group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full">
               <Avatar className="h-12 w-12">
                 {content.avatar && (
                   <AvatarImage src={content.avatar} alt={content.name} />
                 )}
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
+              {editable && (
+                <label
+                  className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/60 text-[10px] font-medium text-white opacity-0 transition-opacity hover:opacity-100"
+                  title="Upload avatar"
+                >
+                  {uploadingAvatar ? '…' : 'Edit'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f && onUploadAvatar) onUploadAvatar(f)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              )}
             </div>
             <div className="flex flex-col items-end gap-1">
               {content.timezone && (

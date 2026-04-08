@@ -24,16 +24,27 @@ export function SwePortfolio({
   editable = false,
   onUploadImage,
   uploadingIndex = null,
+  onUploadAvatar,
+  uploadingAvatar = false,
 }: {
   content: Content
   section?: PortfolioSection
   editable?: boolean
   onUploadImage?: (index: number, file: File) => void
   uploadingIndex?: number | null
+  onUploadAvatar?: (file: File) => void
+  uploadingAvatar?: boolean
 }) {
   return (
     <div className="flex min-h-full w-full flex-1 items-center justify-center p-6 md:p-10">
-      {section === 'profile' && <Profile content={content} />}
+      {section === 'profile' && (
+        <Profile
+          content={content}
+          editable={editable}
+          onUploadAvatar={onUploadAvatar}
+          uploadingAvatar={uploadingAvatar}
+        />
+      )}
       {section === 'experience' && <ExperiencePage content={content} />}
       {section === 'skills' && <SkillsPage content={content} />}
       {section === 'projects' && (
