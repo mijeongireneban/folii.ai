@@ -359,7 +359,7 @@ export function EditorClient({
                     onUploadImage={handleProjectImage}
                     uploadingIndex={uploadingProjectIndex}
                   />
-                  <div className="sticky bottom-3 left-1/2 z-50 flex w-full -translate-y-0 justify-center">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-3 z-50 flex justify-center [&>*]:pointer-events-auto">
                     <MenuBar
                       activeHref={SECTION_PATH[section] || '/'}
                       items={(

@@ -32,7 +32,7 @@ export function SwePortfolio({
   uploadingIndex?: number | null
 }) {
   return (
-    <div className="flex min-h-full w-full flex-1 items-center justify-center p-6 pb-24 md:p-10">
+    <div className="flex min-h-full w-full flex-1 items-center justify-center p-6 md:p-10">
       {section === 'profile' && <Profile content={content} />}
       {section === 'experience' && <ExperiencePage content={content} />}
       {section === 'skills' && <SkillsPage content={content} />}
