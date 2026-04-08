@@ -130,7 +130,19 @@ export function ProjectsPage({
                         </label>
                       )}
                     </div>
-                  ) : editable ? (
+                  ) : !editable ? (
+                    <div className="relative flex aspect-video items-center justify-center border-b border-dashed bg-muted/20 text-muted-foreground">
+                      <LayoutDashboard className="h-8 w-8 opacity-40" />
+                      {project.category && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-background/80 absolute right-3 top-3 backdrop-blur-sm"
+                        >
+                          {project.category}
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
                     <label className="relative flex aspect-video cursor-pointer items-center justify-center border-b border-dashed text-sm text-muted-foreground hover:bg-muted/40">
                       {uploadingIndex === index ? 'Uploading…' : '+ Add screenshot'}
                       <input
@@ -144,7 +156,7 @@ export function ProjectsPage({
                         }}
                       />
                     </label>
-                  ) : null}
+                  )}
                   <CardHeader className="px-4 pb-0">
                     <h3 className="text-base font-bold">{project.title}</h3>
                     {project.built_with && (
