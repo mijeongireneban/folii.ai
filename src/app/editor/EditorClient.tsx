@@ -341,9 +341,17 @@ export function EditorClient({
           }}
         >
           {mode === 'preview' ? (
-            <div style={styles.previewFrame}>
-              <BrowserFrame url={`folii.ai/${username}${SECTION_PATH[section]}`}>
-                <div className="dark relative min-h-full bg-background text-foreground">
+            <div
+              style={{
+                ...styles.previewFrame,
+                ...(layout === 'focus' ? { padding: 12 } : {}),
+              }}
+            >
+              <BrowserFrame
+                url={`folii.ai/${username}${SECTION_PATH[section]}`}
+                fullBleed={layout === 'focus'}
+              >
+                <div className="dark relative flex min-h-full flex-col bg-background text-foreground">
                   <SwePortfolio
                     content={content}
                     section={section}

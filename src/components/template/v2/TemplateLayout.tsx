@@ -20,7 +20,7 @@ export function TemplateLayout({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="flex min-h-[calc(100vh-8rem)] w-full items-start justify-center px-4 pb-32 pt-12"
+      className="flex min-h-svh w-full flex-1 items-center justify-center p-6 pb-24 md:p-10"
     >
       {children}
     </motion.div>

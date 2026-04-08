@@ -19,7 +19,7 @@ export default async function UsernameLayout({
   if (!data) notFound()
 
   return (
-    <div className="dark bg-background text-foreground min-h-screen">
+    <div className="dark bg-background text-foreground flex min-h-screen flex-col">
       {children}
       <BottomMenu basePath={`/${username}`} />
     </div>
