@@ -8,6 +8,9 @@ import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePo
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
 import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
 import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
+import CodeMirror, { EditorView } from '@uiw/react-codemirror'
+import { json as jsonLang } from '@codemirror/lang-json'
+import { oneDark } from '@codemirror/theme-one-dark'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -383,12 +386,23 @@ export function EditorClient({
             </div>
           ) : (
             <div style={styles.jsonFrame}>
-              <textarea
-                value={jsonDraft}
-                onChange={(e) => setJsonDraft(e.target.value)}
-                spellCheck={false}
-                style={styles.jsonTextarea}
-              />
+              <div style={styles.jsonEditorWrap}>
+                <CodeMirror
+                  value={jsonDraft}
+                  onChange={(v) => setJsonDraft(v)}
+                  extensions={[jsonLang(), EditorView.lineWrapping]}
+                  theme={oneDark}
+                  height="100%"
+                  style={{ height: '100%', fontSize: 13 }}
+                  basicSetup={{
+                    lineNumbers: true,
+                    foldGutter: true,
+                    highlightActiveLine: true,
+                    bracketMatching: true,
+                    autocompletion: false,
+                  }}
+                />
+              </div>
               {jsonError && <p style={styles.error}>{jsonError}</p>}
               <div style={styles.jsonActions}>
                 <button
@@ -736,6 +750,7 @@ const styles = {
     background: '#050505',
     borderRight: '1px solid rgba(255,255,255,0.06)',
     display: 'flex',
+    minWidth: 0,
   } as const,
   previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
@@ -881,27 +896,22 @@ const styles = {
   } as const,
 
   jsonFrame: {
+    flex: 1,
+    width: '100%',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
     padding: 24,
-    height: '100%',
     minHeight: 0,
+    minWidth: 0,
   } as const,
-  jsonTextarea: {
+  jsonEditorWrap: {
     flex: 1,
-    minHeight: 400,
-    background: '#0a0a0a',
-    border: '1px solid rgba(255,255,255,0.1)',
+    minHeight: 0,
+    overflow: 'hidden',
     borderRadius: 12,
-    padding: 16,
-    color: '#fff',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: 13,
-    lineHeight: 1.5,
-    resize: 'vertical',
-    outline: 'none',
+    border: '1px solid rgba(255,255,255,0.1)',
+    background: '#0a0a0a',
   } as const,
   jsonActions: {
     display: 'flex',
