@@ -19,6 +19,7 @@ export const linksSchema = z.object({
   github: z.string().url().max(200).optional(),
   twitter: z.string().url().max(200).optional(),
   linkedin: z.string().url().max(200).optional(),
+  instagram: z.string().url().max(200).optional(),
   website: z.string().url().max(200).optional(),
 })
 

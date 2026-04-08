@@ -7,12 +7,20 @@ import * as React from 'react'
 export function BrowserFrame({
   url,
   children,
+  fullBleed = false,
 }: {
   url: string
   children: React.ReactNode
+  fullBleed?: boolean
 }) {
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1200px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]">
+    <div
+      suppressHydrationWarning
+      className={
+        'mx-auto flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] ' +
+        (fullBleed ? '' : 'max-w-[1200px]')
+      }
+    >
       <div className="flex items-center gap-3 border-b border-white/10 bg-[#111] px-4 py-3">
         <div className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />

@@ -17,7 +17,11 @@ export const PLACEHOLDER_CONTENT: Content = contentSchema.parse({
     'Another thing that sets you apart.',
   ],
   years_experience: '5+ years',
-  links: {},
+  links: {
+    linkedin: 'https://linkedin.com/in/your-handle',
+    github: 'https://github.com/your-handle',
+    instagram: 'https://instagram.com/your-handle',
+  },
   experience: [
     {
       company: 'Company',

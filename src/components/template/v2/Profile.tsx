@@ -10,7 +10,7 @@ import {
   Mail,
   Globe,
 } from 'lucide-react'
-import { GithubIcon, LinkedinIcon, TwitterIcon } from './brand-icons'
+import { GithubIcon, InstagramIcon, LinkedinIcon, TwitterIcon } from './brand-icons'
 import type { Content } from '@/lib/content/schema'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -173,6 +173,11 @@ export function Profile({ content }: { content: Content }) {
             {content.email && (
               <IconLinkButton href={`mailto:${content.email}`}>
                 <Mail className="h-3 w-3" />
+              </IconLinkButton>
+            )}
+            {content.links.instagram && (
+              <IconLinkButton href={content.links.instagram}>
+                <InstagramIcon className="h-3 w-3" />
               </IconLinkButton>
             )}
             {content.links.twitter && (
