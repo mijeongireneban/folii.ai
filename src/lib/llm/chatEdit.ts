@@ -4,7 +4,7 @@ import { contentSchema, type Content } from '@/lib/content/schema'
 import { coerceContent } from './coerce'
 
 export type ChatEditResult =
-  | { ok: true; content: Content; needsInfo?: string }
+  | { ok: true; content: Content; needsInfo?: string; reply?: string }
   | {
       ok: false
       reason: 'invalid_output' | 'llm_error' | 'empty_request'
@@ -51,12 +51,20 @@ export async function chatEdit(
     return { ok: false, reason: 'invalid_output', detail: 'not json' }
   }
 
-  // Pull out _needs_info before validating — it's not part of the schema.
+  // Pull out _needs_info and _reply before validating — they're not part of
+  // the schema. _reply is set when the user asked a meta question instead of
+  // requesting an edit; the model should return content unchanged in that case.
   let needsInfo: string | undefined
   if (parsed && typeof parsed === 'object' && '_needs_info' in parsed) {
     const maybe = (parsed as { _needs_info?: unknown })._needs_info
     if (typeof maybe === 'string') needsInfo = maybe
     delete (parsed as { _needs_info?: unknown })._needs_info
+  }
+  let reply: string | undefined
+  if (parsed && typeof parsed === 'object' && '_reply' in parsed) {
+    const maybe = (parsed as { _reply?: unknown })._reply
+    if (typeof maybe === 'string') reply = maybe
+    delete (parsed as { _reply?: unknown })._reply
   }
 
   parsed = coerceContent(parsed)
@@ -69,5 +77,5 @@ export async function chatEdit(
       detail: result.error.issues.map((i) => i.message).join('; '),
     }
   }
-  return { ok: true, content: result.data, needsInfo }
+  return { ok: true, content: result.data, needsInfo, reply }
 }

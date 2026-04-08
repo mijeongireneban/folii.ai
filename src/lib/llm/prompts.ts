@@ -113,7 +113,14 @@ Rules:
 - Never invent employment, education, URLs, or screenshots. If the user asks you to add something you have no evidence for, ask them to provide the details (return the content unchanged and set a "_needs_info" key with your question).
 - Do not include any top-level field named icon, banner_image, or illustration. (Within a skills[] entry, "icon" is allowed and refers to a lucide icon name.)
 - If the request is ambiguous, make the smallest reasonable interpretation and apply it.
-- If the request is harmful, off-topic, or would damage the portfolio (e.g. "delete everything"), return the content unchanged.`
+- If the request is harmful, off-topic, or would damage the portfolio (e.g. "delete everything"), return the content unchanged.
+
+Meta questions and guidance:
+- Sometimes the user will ask a question or request advice instead of an edit — e.g. "what do I need to do?", "what's missing?", "should I add a project?", "how does this look?", "can you suggest improvements?". In that case:
+  - Return the content COMPLETELY UNCHANGED.
+  - Set a top-level "_reply" key to a short, specific, helpful answer (1-3 sentences) grounded in the user's actual content. Suggest 1-2 concrete next steps (e.g. "Your bio is missing a location. You also have no projects yet — try: 'add a project about X'.").
+  - Do NOT also edit the content in the same turn. Pick one: edit OR _reply, never both.
+- "_reply" is only for questions/advice. For an actual edit request, omit "_reply" entirely and just return the updated content.`
 
 // Render helpers — keep prompt assembly pure so we can test it.
 export function renderParseResumeUserMessage(resumeText: string): string {

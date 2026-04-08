@@ -103,19 +103,26 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 7. Write back to sites + save assistant message with snapshot
-  const { error: updateErr } = await admin
-    .from('sites')
-    .update({ content: result.content })
-    .eq('id', site.id)
-  if (updateErr) {
-    return NextResponse.json(
-      { error: 'db_error', detail: updateErr.message },
-      { status: 500 }
-    )
+  // 7. Write back to sites (only when this turn was an actual edit) and save
+  //    the assistant message. If the model returned a meta `_reply`, treat the
+  //    turn as Q&A: skip the sites update and don't snapshot content_after, so
+  //    "Revert last" stays attached to the most recent real edit.
+  const isReplyOnly = !!result.reply
+  if (!isReplyOnly) {
+    const { error: updateErr } = await admin
+      .from('sites')
+      .update({ content: result.content })
+      .eq('id', site.id)
+    if (updateErr) {
+      return NextResponse.json(
+        { error: 'db_error', detail: updateErr.message },
+        { status: 500 }
+      )
+    }
   }
 
   const assistantText =
+    result.reply ??
     result.needsInfo ??
     'Updated. Let me know what to change next.'
   const { data: assistantMsg } = await admin
@@ -124,7 +131,7 @@ export async function POST(request: NextRequest) {
       site_id: site.id,
       role: 'assistant',
       content: assistantText,
-      content_after: result.content,
+      content_after: isReplyOnly ? null : result.content,
     })
     .select('id, created_at')
     .single()

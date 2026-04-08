@@ -38,6 +38,17 @@ export default async function SignUpPage({
             style={{ ...fieldStyles.input, marginTop: 6, width: '100%' }}
           />
         </label>
+        <label style={fieldStyles.label}>
+          Confirm password
+          <input
+            name="confirm_password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            style={{ ...fieldStyles.input, marginTop: 6, width: '100%' }}
+          />
+        </label>
         <SubmitButton style={fieldStyles.submit} pendingLabel="Creating account…">
           Sign up
         </SubmitButton>
