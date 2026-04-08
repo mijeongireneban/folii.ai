@@ -21,6 +21,20 @@ export default async function UsernameLayout({
   return (
     <div className="dark bg-background text-foreground flex min-h-screen flex-col">
       {children}
+      <footer className="text-muted-foreground pointer-events-none fixed bottom-4 right-4 z-40 text-xs">
+        <span className="pointer-events-auto">
+          made by{' '}
+          <a
+            href="https://folii.ai"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground underline underline-offset-4 transition-colors"
+          >
+            folii.ai
+          </a>{' '}
+          with 💙
+        </span>
+      </footer>
       <BottomMenu basePath={`/${username}`} />
     </div>
   )
