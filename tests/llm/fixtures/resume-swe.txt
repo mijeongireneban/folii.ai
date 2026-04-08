@@ -1,0 +1,27 @@
+Maya Okonkwo
+maya@example.com | github.com/maya | linkedin.com/in/maya
+
+EXPERIENCE
+
+Acme, Inc. — Staff Software Engineer
+Jan 2022 - Present
+- Built the cache observability stack (Go, Redis) that caught 3 prod incidents before users noticed.
+- Led migration from REST to gRPC across 14 services, reducing p99 latency by 38%.
+- Mentored 4 engineers through promotion to mid-level.
+
+Stripe — Software Engineer
+2018 - 2021
+- Owned the idempotency key infrastructure serving 40k req/s.
+- Shipped the first version of the Terminal SDK for in-person payments.
+
+EDUCATION
+
+UC Berkeley — B.S. Computer Science, 2018
+
+PROJECTS
+
+cachetrace — Visualizing Redis cache access patterns in production.
+Tech: Go, Redis, React. https://github.com/maya/cachetrace
+
+SKILLS
+Go, Rust, TypeScript, PostgreSQL, gRPC, Kubernetes

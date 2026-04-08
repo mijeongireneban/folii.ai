@@ -1,6 +1,0 @@
-export { ProfileHeader } from './ProfileHeader'
-export { ExperienceList } from './ExperienceList'
-export { ProjectsGrid } from './ProjectsGrid'
-export { SkillsSection } from './SkillsSection'
-export { ContactSection } from './ContactSection'
-export { CaseStudy } from './CaseStudy'

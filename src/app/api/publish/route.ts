@@ -1,38 +1,56 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { ContentSchema } from '@/lib/schemas/content'
-import { canPublish } from './canPublish'
-import { revalidatePath } from 'next/cache'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
-export async function POST(req: Request) {
+export const runtime = 'nodejs'
+
+const bodySchema = z.object({ published: z.boolean() })
+
+export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-
-  const body = await req.json().catch(() => ({}))
-  const wantPublished: boolean = body.published !== false // default true
-
-  const { data: portfolio } = await supabase
-    .from('portfolios').select('id, username, content').eq('user_id', user.id).single()
-  if (!portfolio) return NextResponse.json({ error: 'no portfolio' }, { status: 404 })
-
-  const content = ContentSchema.parse(portfolio.content)
-  if (wantPublished) {
-    const gate = canPublish(content, portfolio.username)
-    if (!gate.ok) return NextResponse.json({ error: 'incomplete', missing: gate.missing }, { status: 400 })
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
 
-  await supabase
-    .from('portfolios')
-    .update({ published: wantPublished })
-    .eq('id', portfolio.id)
+  const rl = await checkRateLimit(BUCKETS.publish, user.id)
+  if (!rl.ok) return rateLimitResponse(rl)!
 
-  if (portfolio.username) revalidatePath(`/${portfolio.username}`)
+  let body: z.infer<typeof bodySchema>
+  try {
+    body = bodySchema.parse(await request.json())
+  } catch {
+    return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
+  }
 
-  return NextResponse.json({
-    ok: true,
-    published: wantPublished,
-    url: portfolio.username && wantPublished
-      ? `${process.env.NEXT_PUBLIC_SITE_URL}/${portfolio.username}` : null,
-  })
+  const admin = createAdminClient()
+  const { data: site, error } = await admin
+    .from('sites')
+    .update({
+      published: body.published,
+      published_at: body.published ? new Date().toISOString() : null,
+    })
+    .eq('owner_id', user.id)
+    .select('id, published, published_at')
+    .maybeSingle()
+
+  if (error) {
+    return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 })
+  }
+  if (!site) {
+    return NextResponse.json({ error: 'no_site' }, { status: 400 })
+  }
+
+  // Get the username for the public URL.
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .single()
+
+  return NextResponse.json({ ok: true, site, username: profile?.username })
 }
