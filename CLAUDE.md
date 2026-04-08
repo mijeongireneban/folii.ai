@@ -10,6 +10,14 @@ This project follows **git flow**. Always keep this in mind:
 
 When any skill (office-hours, plan-eng-review, ship, etc.) refers to "the base branch" or "cut from master", interpret it as `develop` for feature work. Only release and hotfix flows touch `master` directly.
 
+## Dev notes
+
+- Package manager: **pnpm** (never npm/yarn).
+- No test framework. Use `pnpm exec tsc --noEmit` as the proxy check before shipping.
+- Hydration mismatches after className edits are usually stale Turbopack cache. Fix: `rm -rf .next` and restart `pnpm dev`.
+- `src/lib/content/placeholder.ts` only seeds fresh rows. Existing users read `sites.content` from Supabase, so placeholder edits won't show until the user hits Reset (`DELETE /api/content`).
+- `min-h-full` / `flex-1` only resolve if the full parent chain is `flex flex-col` with a defined height. When centering breaks, check `[username]/layout.tsx` → `TemplateLayout` → inner wrapper chain.
+
 ## Design System
 
 Always read `DESIGN.md` before making any visual or UI decisions. All font choices, colors, spacing, border radii, elevation, and aesthetic direction are defined there. Do not deviate without explicit user approval. In QA mode, flag any code that does not match DESIGN.md.
