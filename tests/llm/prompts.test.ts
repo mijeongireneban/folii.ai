@@ -25,6 +25,16 @@ describe('PARSE_RESUME_SYSTEM', () => {
     expect(PARSE_RESUME_SYSTEM).toMatch(/name<=80/)
     expect(PARSE_RESUME_SYSTEM).toMatch(/bio<=1200/)
   })
+
+  it('documents the v2 schema fields', () => {
+    expect(PARSE_RESUME_SYSTEM).toContain('headline_points')
+    expect(PARSE_RESUME_SYSTEM).toContain('years_experience')
+    expect(PARSE_RESUME_SYSTEM).toContain('achievements')
+    expect(PARSE_RESUME_SYSTEM).toContain('technologies')
+    expect(PARSE_RESUME_SYSTEM).toContain('skills')
+    expect(PARSE_RESUME_SYSTEM).toContain('category')
+    expect(PARSE_RESUME_SYSTEM).toContain('built_with')
+  })
 })
 
 describe('CHAT_EDIT_SYSTEM', () => {
