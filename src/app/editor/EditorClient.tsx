@@ -20,6 +20,7 @@ const SECTION_PATH: Record<PortfolioSection, string> = {
   contact: '/contact',
 }
 import { signOut } from '@/app/auth/actions'
+import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 type Layout = 'split' | 'focus'
 type Mode = 'preview' | 'json'
@@ -31,13 +32,14 @@ export function EditorClient({
   initialContent,
   initialMessages,
   initialPublished,
-  username,
+  username: initialUsername,
 }: {
   initialContent: Content | null
   initialMessages: ChatMessage[]
   initialPublished: boolean
   username: string
 }) {
+  const [username, setUsername] = useState(initialUsername)
   const hasRealContent = initialContent !== null
   const [content, setContent] = useState<Content>(
     initialContent ?? PLACEHOLDER_CONTENT
@@ -356,6 +358,7 @@ export function EditorClient({
         onUploadClick={() => fileInputRef.current?.click()}
         uploading={uploading}
         onReset={handleReset}
+        onUsernameChange={setUsername}
       />
 
       <div
@@ -521,6 +524,218 @@ export function EditorClient({
   )
 }
 
+function UsernameEditor({
+  username,
+  onChange,
+}: {
+  username: string
+  onChange?: (u: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(username)
+  const [status, setStatus] = useState<
+    | { kind: 'idle' }
+    | { kind: 'checking' }
+    | { kind: 'invalid'; reason: string }
+    | { kind: 'available' }
+    | { kind: 'unavailable'; reason: string }
+    | { kind: 'saving' }
+    | { kind: 'error'; reason: string }
+  >({ kind: 'idle' })
+
+  useEffect(() => {
+    setDraft(username)
+  }, [username])
+
+  useEffect(() => {
+    if (!editing) return
+    const slug = draft.trim().toLowerCase()
+    if (slug === username) {
+      setStatus({ kind: 'idle' })
+      return
+    }
+    const err = validateSlug(slug)
+    if (err) {
+      setStatus({ kind: 'invalid', reason: slugErrorMessage(err) })
+      return
+    }
+    setStatus({ kind: 'checking' })
+    const controller = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/username/check?slug=${encodeURIComponent(slug)}`,
+          { signal: controller.signal }
+        )
+        const json = (await res.json()) as { available: boolean; reason?: string }
+        if (json.available) setStatus({ kind: 'available' })
+        else setStatus({ kind: 'unavailable', reason: json.reason ?? 'Unavailable.' })
+      } catch (e) {
+        if ((e as { name?: string }).name === 'AbortError') return
+        setStatus({ kind: 'error', reason: 'Could not reach server.' })
+      }
+    }, 300)
+    return () => {
+      controller.abort()
+      clearTimeout(t)
+    }
+  }, [draft, editing, username])
+
+  const canSave = status.kind === 'available'
+
+  async function handleSave() {
+    const slug = draft.trim().toLowerCase()
+    if (slug === username) {
+      setEditing(false)
+      return
+    }
+    const err = validateSlug(slug)
+    if (err) {
+      setStatus({ kind: 'invalid', reason: slugErrorMessage(err) })
+      return
+    }
+    setStatus({ kind: 'saving' })
+    try {
+      const res = await fetch('/api/username', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      })
+      const json = (await res.json()) as {
+        ok?: boolean
+        username?: string
+        error?: string
+        reason?: string
+      }
+      if (!res.ok || !json.ok || !json.username) {
+        setStatus({
+          kind: 'error',
+          reason: json.reason ?? json.error ?? 'Save failed.',
+        })
+        return
+      }
+      onChange?.(json.username)
+      setEditing(false)
+      setStatus({ kind: 'idle' })
+    } catch {
+      setStatus({ kind: 'error', reason: 'Network error.' })
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(username)
+          setStatus({ kind: 'idle' })
+          setEditing(true)
+        }}
+        style={{
+          background: 'transparent',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 100,
+          padding: '6px 12px',
+          color: '#a6a6a6',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+        }}
+        title="Edit username"
+      >
+        /{username}
+      </button>
+    )
+  }
+
+  const hintColor =
+    status.kind === 'available'
+      ? '#0099ff'
+      : status.kind === 'invalid' ||
+        status.kind === 'unavailable' ||
+        status.kind === 'error'
+      ? '#ff6b6b'
+      : '#a6a6a6'
+  const hintText =
+    status.kind === 'checking'
+      ? 'Checking…'
+      : status.kind === 'available'
+      ? 'Available'
+      : status.kind === 'invalid' || status.kind === 'unavailable' || status.kind === 'error'
+      ? status.reason
+      : status.kind === 'saving'
+      ? 'Saving…'
+      : ''
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: '#a6a6a6', fontSize: 12 }}>folii.ai/</span>
+      <input
+        value={draft}
+        maxLength={USERNAME_MAX}
+        autoFocus
+        onChange={(e) => setDraft(e.target.value.toLowerCase())}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && canSave) handleSave()
+          if (e.key === 'Escape') {
+            setEditing(false)
+            setStatus({ kind: 'idle' })
+          }
+        }}
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 100,
+          padding: '6px 12px',
+          color: '#fff',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          outline: 'none',
+          width: 180,
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={!canSave}
+        style={{
+          background: canSave ? '#0099ff' : 'rgba(255,255,255,0.08)',
+          color: canSave ? '#fff' : '#666',
+          border: 'none',
+          borderRadius: 100,
+          padding: '6px 14px',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          cursor: canSave ? 'pointer' : 'not-allowed',
+        }}
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setEditing(false)
+          setDraft(username)
+          setStatus({ kind: 'idle' })
+        }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#a6a6a6',
+          fontSize: 12,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+        }}
+      >
+        Cancel
+      </button>
+      {hintText && (
+        <span style={{ color: hintColor, fontSize: 11 }}>{hintText}</span>
+      )}
+    </div>
+  )
+}
+
 function TopBar({
   username,
   layout,
@@ -533,6 +748,7 @@ function TopBar({
   onUploadClick,
   uploading,
   onReset,
+  onUsernameChange,
 }: {
   username: string
   layout?: Layout
@@ -545,10 +761,14 @@ function TopBar({
   onUploadClick?: () => void
   uploading?: boolean
   onReset?: () => void
+  onUsernameChange?: (u: string) => void
 }) {
   return (
     <header style={styles.topbar}>
-      <div style={styles.brand}>folii.ai</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={styles.brand}>folii.ai</div>
+        <UsernameEditor username={username} onChange={onUsernameChange} />
+      </div>
       <div style={styles.topbarRight}>
         {onUploadClick && (
           <button
