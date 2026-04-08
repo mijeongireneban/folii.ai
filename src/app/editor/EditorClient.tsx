@@ -828,7 +828,7 @@ function TopBar({
                 ...(published ? styles.publishBtnOn : {}),
               }}
             >
-              {published ? 'Published' : 'Publish'}
+              {published ? 'Unpublish' : 'Publish'}
             </button>
           </>
         )}
