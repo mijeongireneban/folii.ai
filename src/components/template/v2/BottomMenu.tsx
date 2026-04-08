@@ -79,7 +79,7 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
       <div
         ref={menuRef}
         className={cn(
-          'bg-background/95 border-border/50 z-10 inline-flex h-10 items-center justify-center gap-[3px] overflow-hidden rounded-full border px-1.5 backdrop-blur',
+          'bg-background/95 border-border/50 z-10 inline-flex h-14 items-center justify-center gap-1 overflow-hidden rounded-full border px-2 backdrop-blur',
           'shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_8px_16px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_16px_-4px_rgba(0,0,0,0.2)]'
         )}
       >
@@ -93,7 +93,7 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
               key={index}
               href={item.href}
               className={cn(
-                'flex h-8 w-8 items-center justify-center gap-2 rounded-full px-3 py-1 transition-colors',
+                'flex h-11 w-11 items-center justify-center rounded-full transition-colors',
                 isActive ? 'bg-muted' : 'hover:bg-muted/80'
               )}
               onMouseEnter={() => setActiveIndex(index)}
@@ -105,7 +105,7 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
                 }
               }}
             >
-              <Icon className="h-[18px] w-[18px]" />
+              <Icon className="h-[22px] w-[22px]" strokeWidth={1.75} />
               <span className="sr-only">{item.label}</span>
             </a>
           )

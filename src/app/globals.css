@@ -108,11 +108,11 @@
   --folii-font-mono: 'Azeret Mono', ui-monospace, Menlo, monospace;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Note: do NOT add a universal `margin: 0; padding: 0` reset here.
+   Tailwind v4 preflight already normalizes these, and an unlayered
+   universal reset will beat layered utility classes in the cascade —
+   which nukes shadcn Card/Badge padding and makes the v2 template look
+   flat. box-sizing is handled by preflight. */
 
 html,
 body {
@@ -125,14 +125,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: var(--folii-blue);
-  text-decoration: none;
-}
-
-a:hover {
-  opacity: 0.7;
-}
+/* No global `a` color/hover — every anchor sets its own color explicitly
+   (v1 pages via inline style, v2 template via Tailwind classes). A global
+   rule here leaks into shadcn Buttons rendered `asChild` as anchors. */
 
 @media (prefers-reduced-motion: reduce) {
   *,
