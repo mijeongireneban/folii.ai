@@ -7,7 +7,8 @@ import type { ChatMessage } from '@/lib/supabase/types'
 import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
 import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
-import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
+import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2 } from 'lucide-react'
+import { useFormStatus } from 'react-dom'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -55,6 +56,8 @@ export function EditorClient({
     }))
   )
   const [published, setPublished] = useState(initialPublished)
+  const [publishing, setPublishing] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [layout, setLayout] = useState<Layout>('split')
   const [mode, setMode] = useState<Mode>('preview')
   const [section, setSection] = useState<PortfolioSection>('profile')
@@ -304,31 +307,41 @@ export function EditorClient({
       )
     )
       return
-    const res = await fetch('/api/content', { method: 'DELETE' })
-    const json = await res.json()
-    if (!res.ok) {
-      setChatError(json.error ?? 'reset_failed')
-      return
+    setResetting(true)
+    try {
+      const res = await fetch('/api/content', { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) {
+        setChatError(json.error ?? 'reset_failed')
+        return
+      }
+      setContent(json.content)
+      setIsPlaceholder(true)
+      setMessages([])
+      setPublished(false)
+      setMode('preview')
+      setSection('profile')
+      setChatError(null)
+      setUploadError(null)
+    } finally {
+      setResetting(false)
     }
-    setContent(json.content)
-    setIsPlaceholder(true)
-    setMessages([])
-    setPublished(false)
-    setMode('preview')
-    setSection('profile')
-    setChatError(null)
-    setUploadError(null)
   }
 
   async function handlePublishToggle() {
+    if (publishing) return
     const next = !published
-    setPublished(next)
-    const res = await fetch('/api/publish', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ published: next }),
-    })
-    if (!res.ok) setPublished(!next)
+    setPublishing(true)
+    try {
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ published: next }),
+      })
+      if (res.ok) setPublished(next)
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -354,10 +367,12 @@ export function EditorClient({
         onEnterJson={enterJsonMode}
         onExitJson={() => setMode('preview')}
         published={published}
+        publishing={publishing}
         onPublishToggle={handlePublishToggle}
         onUploadClick={() => fileInputRef.current?.click()}
         uploading={uploading}
         onReset={handleReset}
+        resetting={resetting}
         onUsernameChange={setUsername}
       />
 
@@ -447,9 +462,16 @@ export function EditorClient({
                 </button>
                 <button
                   onClick={handleJsonSave}
-                  style={styles.sendBtn}
+                  style={{
+                    ...styles.sendBtn,
+                    ...(jsonSaving ? styles.btnBusy : {}),
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
                   disabled={jsonSaving}
                 >
+                  {jsonSaving && <Loader2 size={14} className="animate-spin" />}
                   {jsonSaving ? 'Saving…' : 'Save JSON'}
                 </button>
               </div>
@@ -499,7 +521,12 @@ export function EditorClient({
                 </div>
               )
             })}
-            {isPending && <div style={styles.thinking}>Thinking…</div>}
+            {isPending && (
+              <div style={styles.thinking}>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Thinking…</span>
+              </div>
+            )}
             {chatError && <p style={styles.error}>{chatError}</p>}
           </div>
           <form onSubmit={handleSend} style={styles.chatForm}>
@@ -512,9 +539,16 @@ export function EditorClient({
             />
             <button
               type="submit"
-              style={styles.sendBtn}
+              style={{
+                ...styles.sendBtn,
+                ...(isPending ? styles.btnBusy : {}),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
               disabled={isPending || !input.trim()}
             >
+              {isPending && <Loader2 size={14} className="animate-spin" />}
               Send
             </button>
           </form>
@@ -744,10 +778,12 @@ function TopBar({
   onEnterJson,
   onExitJson,
   published,
+  publishing,
   onPublishToggle,
   onUploadClick,
   uploading,
   onReset,
+  resetting,
   onUsernameChange,
 }: {
   username: string
@@ -757,10 +793,12 @@ function TopBar({
   onEnterJson?: () => void
   onExitJson?: () => void
   published?: boolean
+  publishing?: boolean
   onPublishToggle?: () => void
   onUploadClick?: () => void
   uploading?: boolean
   onReset?: () => void
+  resetting?: boolean
   onUsernameChange?: (u: string) => void
 }) {
   return (
@@ -774,8 +812,15 @@ function TopBar({
           <button
             onClick={onUploadClick}
             disabled={uploading}
-            style={styles.ghostBtn}
+            style={{
+              ...styles.ghostBtn,
+              ...(uploading ? styles.btnBusy : {}),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
           >
+            {uploading && <Loader2 size={14} className="animate-spin" />}
             {uploading ? 'Parsing…' : 'Upload resume'}
           </button>
         )}
@@ -823,27 +868,62 @@ function TopBar({
             )}
             <button
               onClick={onPublishToggle}
+              disabled={publishing}
               style={{
                 ...styles.publishBtn,
                 ...(published ? styles.publishBtnOn : {}),
+                ...(publishing ? styles.btnBusy : {}),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
+              {publishing && <Loader2 size={14} className="animate-spin" />}
               {published ? 'Unpublish' : 'Publish'}
             </button>
           </>
         )}
         {onReset && (
-          <button onClick={onReset} style={styles.ghostBtn}>
-            Reset
+          <button
+            onClick={onReset}
+            disabled={resetting}
+            style={{
+              ...styles.ghostBtn,
+              ...(resetting ? styles.btnBusy : {}),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {resetting && <Loader2 size={14} className="animate-spin" />}
+            {resetting ? 'Resetting…' : 'Reset'}
           </button>
         )}
         <form action={signOut}>
-          <button type="submit" style={styles.ghostBtn}>
-            Sign out
-          </button>
+          <SignOutButton />
         </form>
       </div>
     </header>
+  )
+}
+
+function SignOutButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      style={{
+        ...styles.ghostBtn,
+        ...(pending ? styles.btnBusy : {}),
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      {pending && <Loader2 size={14} className="animate-spin" />}
+      {pending ? 'Signing out…' : 'Sign out'}
+    </button>
   )
 }
 
@@ -1081,7 +1161,15 @@ const styles = {
     background: 'rgba(255,255,255,0.06)',
     color: '#fff',
   } as const,
-  thinking: { fontSize: 13, color: '#666', alignSelf: 'flex-start' } as const,
+  thinking: {
+    fontSize: 13,
+    color: '#666',
+    alignSelf: 'flex-start',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  } as const,
+  btnBusy: { opacity: 0.6, cursor: 'wait' } as const,
   chatForm: {
     display: 'flex',
     gap: 8,

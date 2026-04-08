@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { AuthShell, fieldStyles } from '../AuthShell'
 import { signUp } from '../actions'
+import { SubmitButton } from '../SubmitButton'
 
 export default async function SignUpPage({
   searchParams,
@@ -37,9 +38,9 @@ export default async function SignUpPage({
             style={{ ...fieldStyles.input, marginTop: 6, width: '100%' }}
           />
         </label>
-        <button type="submit" style={fieldStyles.submit}>
+        <SubmitButton style={fieldStyles.submit} pendingLabel="Creating account…">
           Sign up
-        </button>
+        </SubmitButton>
       </form>
       <div style={fieldStyles.linkRow}>
         <Link href="/auth/login" style={fieldStyles.link}>
