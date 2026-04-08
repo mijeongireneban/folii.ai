@@ -1,5 +1,5 @@
 import { Mail, Globe } from 'lucide-react'
-import { GithubIcon, LinkedinIcon, TwitterIcon } from './brand-icons'
+import { GithubIcon, InstagramIcon, LinkedinIcon, TwitterIcon } from './brand-icons'
 import type { Content } from '@/lib/content/schema'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,6 +33,13 @@ export function ContactPage({ content }: { content: Content }) {
       icon: <GithubIcon className="text-muted-foreground h-4 w-4" />,
       label: 'GitHub',
       href: content.links.github,
+    })
+  }
+  if (content.links.instagram) {
+    items.push({
+      icon: <InstagramIcon className="text-muted-foreground h-4 w-4" />,
+      label: 'Instagram',
+      href: content.links.instagram,
     })
   }
   if (content.links.twitter) {
