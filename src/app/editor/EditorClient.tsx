@@ -58,6 +58,7 @@ export function EditorClient({
   const [jsonSaving, setJsonSaving] = useState(false)
   const [reverting, setReverting] = useState<string | null>(null)
   const [uploadingProjectIndex, setUploadingProjectIndex] = useState<number | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [input, setInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -211,6 +212,33 @@ export function EditorClient({
     }
   }
 
+  async function handleProfileAvatar(file: File) {
+    if (isPlaceholder) {
+      setChatError('Upload your resume or describe your portfolio first.')
+      return
+    }
+    setUploadingAvatar(true)
+    setChatError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: form,
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setChatError(json.error ?? 'avatar_upload_failed')
+        return
+      }
+      setContent(json.content)
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : 'avatar_upload_failed')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   function enterJsonMode() {
     setJsonDraft(JSON.stringify(content, null, 2))
     setJsonError(null)
@@ -358,6 +386,8 @@ export function EditorClient({
                     editable={!isPlaceholder}
                     onUploadImage={handleProjectImage}
                     uploadingIndex={uploadingProjectIndex}
+                    onUploadAvatar={handleProfileAvatar}
+                    uploadingAvatar={uploadingAvatar}
                   />
                   <div className="pointer-events-none absolute inset-x-0 bottom-3 z-50 flex justify-center [&>*]:pointer-events-auto">
                     <MenuBar
