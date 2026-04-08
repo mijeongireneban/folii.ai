@@ -14,6 +14,7 @@ export interface MenuBarItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   label: string
   href: string
+  onClick?: (e: React.MouseEvent) => void
 }
 
 interface MenuBarProps {
@@ -97,6 +98,12 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
               )}
               onMouseEnter={() => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
+              onClick={(e) => {
+                if (item.onClick) {
+                  e.preventDefault()
+                  item.onClick(e)
+                }
+              }}
             >
               <Icon className="h-[18px] w-[18px]" />
               <span className="sr-only">{item.label}</span>
@@ -113,14 +120,14 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
 export function BottomMenu({ basePath }: { basePath: string }) {
   const pathname = usePathname()
   const items: MenuBarItem[] = [
-    { icon: User, label: 'About', href: basePath || '/' },
-    { icon: Briefcase, label: 'Experience', href: `${basePath}/experience` },
+    { icon: User, label: 'About Me', href: basePath || '/' },
+    { icon: Briefcase, label: 'Work Experience', href: `${basePath}/experience` },
     { icon: Wrench, label: 'Skills', href: `${basePath}/skills` },
     { icon: FolderKanban, label: 'Projects', href: `${basePath}/projects` },
     { icon: Mail, label: 'Contact', href: `${basePath}/contact` },
   ]
   return (
-    <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2">
+    <div className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2">
       <MenuBar items={items} activeHref={pathname} />
     </div>
   )

@@ -5,14 +5,17 @@ import type { Content } from '@/lib/content/schema'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import type { ChatMessage } from '@/lib/supabase/types'
 import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
+import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
+import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
+import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
 
-const SECTIONS: { key: PortfolioSection; label: string }[] = [
-  { key: 'profile', label: 'Profile' },
-  { key: 'experience', label: 'Experience' },
-  { key: 'skills', label: 'Skills' },
-  { key: 'projects', label: 'Projects' },
-  { key: 'contact', label: 'Contact' },
-]
+const SECTION_PATH: Record<PortfolioSection, string> = {
+  profile: '',
+  experience: '/experience',
+  skills: '/skills',
+  projects: '/projects',
+  contact: '/contact',
+}
 import { signOut } from '@/app/auth/actions'
 
 type Layout = 'split' | 'focus'
@@ -261,6 +264,29 @@ export function EditorClient({
     }
   }
 
+  async function handleReset() {
+    if (
+      !confirm(
+        'Reset everything? This wipes your content, chat history, and unpublishes your site. This cannot be undone.'
+      )
+    )
+      return
+    const res = await fetch('/api/content', { method: 'DELETE' })
+    const json = await res.json()
+    if (!res.ok) {
+      setChatError(json.error ?? 'reset_failed')
+      return
+    }
+    setContent(json.content)
+    setIsPlaceholder(true)
+    setMessages([])
+    setPublished(false)
+    setMode('preview')
+    setSection('profile')
+    setChatError(null)
+    setUploadError(null)
+  }
+
   async function handlePublishToggle() {
     const next = !published
     setPublished(next)
@@ -298,6 +324,7 @@ export function EditorClient({
         onPublishToggle={handlePublishToggle}
         onUploadClick={() => fileInputRef.current?.click()}
         uploading={uploading}
+        onReset={handleReset}
       />
 
       <div
@@ -315,29 +342,36 @@ export function EditorClient({
         >
           {mode === 'preview' ? (
             <div style={styles.previewFrame}>
-              <div style={styles.sectionTabs}>
-                {SECTIONS.map((s) => (
-                  <button
-                    key={s.key}
-                    onClick={() => setSection(s.key)}
-                    style={{
-                      ...styles.sectionTab,
-                      ...(section === s.key ? styles.sectionTabActive : {}),
-                    }}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-              <div className="dark" style={styles.previewScale}>
-                <SwePortfolio
-                  content={content}
-                  section={section}
-                  editable={!isPlaceholder}
-                  onUploadImage={handleProjectImage}
-                  uploadingIndex={uploadingProjectIndex}
-                />
-              </div>
+              <BrowserFrame url={`folii.ai/${username}${SECTION_PATH[section]}`}>
+                <div className="dark relative min-h-full bg-background text-foreground">
+                  <SwePortfolio
+                    content={content}
+                    section={section}
+                    editable={!isPlaceholder}
+                    onUploadImage={handleProjectImage}
+                    uploadingIndex={uploadingProjectIndex}
+                  />
+                  <div className="sticky bottom-3 left-1/2 z-50 flex w-full -translate-y-0 justify-center">
+                    <MenuBar
+                      activeHref={SECTION_PATH[section] || '/'}
+                      items={(
+                        [
+                          { key: 'profile', icon: User, label: 'About Me', href: '/' },
+                          { key: 'experience', icon: Briefcase, label: 'Work Experience', href: '/experience' },
+                          { key: 'skills', icon: Wrench, label: 'Skills', href: '/skills' },
+                          { key: 'projects', icon: FolderKanban, label: 'Projects', href: '/projects' },
+                          { key: 'contact', icon: Mail, label: 'Contact', href: '/contact' },
+                        ] as { key: PortfolioSection; icon: MenuBarItem['icon']; label: string; href: string }[]
+                      ).map((s) => ({
+                        icon: s.icon,
+                        label: s.label,
+                        href: s.href,
+                        onClick: () => setSection(s.key),
+                      }))}
+                    />
+                  </div>
+                </div>
+              </BrowserFrame>
             </div>
           ) : (
             <div style={styles.jsonFrame}>
@@ -446,6 +480,7 @@ function TopBar({
   onPublishToggle,
   onUploadClick,
   uploading,
+  onReset,
 }: {
   username: string
   layout?: Layout
@@ -457,6 +492,7 @@ function TopBar({
   onPublishToggle?: () => void
   onUploadClick?: () => void
   uploading?: boolean
+  onReset?: () => void
 }) {
   return (
     <header style={styles.topbar}>
@@ -523,6 +559,11 @@ function TopBar({
               {published ? 'Published' : 'Publish'}
             </button>
           </>
+        )}
+        {onReset && (
+          <button onClick={onReset} style={styles.ghostBtn}>
+            Reset
+          </button>
         )}
         <form action={signOut}>
           <button type="submit" style={styles.ghostBtn}>
@@ -683,13 +724,17 @@ const styles = {
   workspaceFocus: { gridTemplateColumns: '1fr' } as const,
 
   previewPane: {
-    overflow: 'auto',
-    background: '#000',
+    overflow: 'hidden',
+    background: '#050505',
     borderRight: '1px solid rgba(255,255,255,0.06)',
+    display: 'flex',
   } as const,
   previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
+    flex: 1,
     padding: 24,
+    display: 'flex',
+    minHeight: 0,
   } as const,
   sectionTabs: {
     display: 'flex',

@@ -103,3 +103,38 @@ export async function PUT(request: NextRequest) {
     },
   })
 }
+
+// Reset: wipe the user's site back to placeholder content, unpublish, and
+// clear chat history. Destructive — client should confirm first.
+export async function DELETE() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+  }
+
+  const admin = createAdminClient()
+  const { data: site, error: siteErr } = await admin
+    .from('sites')
+    .select('id')
+    .eq('owner_id', user.id)
+    .maybeSingle()
+  if (siteErr) {
+    return NextResponse.json({ error: 'db_error', detail: siteErr.message }, { status: 500 })
+  }
+
+  if (site) {
+    await admin.from('chat_messages').delete().eq('site_id', site.id)
+    const { error: updateErr } = await admin
+      .from('sites')
+      .update({ content: PLACEHOLDER_CONTENT, published: false })
+      .eq('id', site.id)
+    if (updateErr) {
+      return NextResponse.json({ error: 'db_error', detail: updateErr.message }, { status: 500 })
+    }
+  }
+
+  return NextResponse.json({ ok: true, content: PLACEHOLDER_CONTENT })
+}
