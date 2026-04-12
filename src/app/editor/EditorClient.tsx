@@ -381,7 +381,8 @@ export function EditorClient({
           .editor-preview-pane {
             border-right: none !important;
             max-height: calc(100vh - 50px - 320px) !important;
-            overflow: auto !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
           }
           .editor-chat-pane {
             position: fixed !important;
@@ -417,7 +418,13 @@ export function EditorClient({
             display: none !important;
           }
           .editor-preview-frame {
-            padding: 8px !important;
+            padding: 0 !important;
+          }
+          .editor-preview-frame > * {
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            max-width: 100% !important;
           }
           .editor-chat-header {
             padding: 8px 12px !important;
