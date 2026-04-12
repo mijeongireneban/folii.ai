@@ -934,7 +934,9 @@ function TopBar({
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
                   gap: 4,
-                  width: 280,
+                  width: 320,
+                  maxHeight: 400,
+                  overflowY: 'auto',
                   zIndex: 50,
                 }}
               >
