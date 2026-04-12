@@ -124,6 +124,9 @@ export function EditorClient({
     const text = input.trim()
     if (!text || isPending) return
     setInput('')
+    // Reset textarea height after clearing
+    const textarea = e.currentTarget.querySelector('textarea')
+    if (textarea) textarea.style.height = 'auto'
     setChatError(null)
 
     // Optimistically append user message
@@ -453,7 +456,9 @@ export function EditorClient({
                           { key: 'projects', icon: FolderKanban, label: 'Projects', href: '/projects' },
                           { key: 'contact', icon: Mail, label: 'Contact', href: '/contact' },
                         ] as { key: PortfolioSection; icon: MenuBarItem['icon']; label: string; href: string }[]
-                      ).map((s) => ({
+                      )
+                        .filter((s) => s.key === 'profile' || !content.hidden_sections?.includes(s.key as 'experience' | 'skills' | 'projects' | 'contact'))
+                        .map((s) => ({
                         icon: s.icon,
                         label: s.label,
                         href: s.href,
@@ -619,12 +624,26 @@ export function EditorClient({
           })()}
           <form onSubmit={handleSend} style={styles.chatForm}>
             <div style={styles.chatInputWrap}>
-              <input
+              <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value)
+                  // Auto-resize
+                  e.target.style.height = 'auto'
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    if (input.trim() && !isPending) {
+                      handleSend(e)
+                    }
+                  }
+                }}
                 placeholder="Tell folii what to change…"
                 style={styles.chatInput}
                 disabled={isPending}
+                rows={1}
               />
               <button
                 type="submit"
@@ -1355,24 +1374,26 @@ const styles = {
     flex: 1,
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   } as const,
   chatInput: {
     flex: 1,
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 100,
+    borderRadius: 18,
     padding: '12px 52px 12px 18px',
     color: '#fff',
     fontSize: 14,
     fontFamily: 'inherit',
     outline: 'none',
+    resize: 'none',
+    overflow: 'hidden',
+    lineHeight: 1.4,
   } as const,
   sendBtn: {
     position: 'absolute',
     right: 6,
-    top: '50%',
-    transform: 'translateY(-50%)',
+    bottom: 6,
     width: 32,
     height: 32,
     background: '#fff',

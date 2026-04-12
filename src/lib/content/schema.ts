@@ -65,6 +65,14 @@ export const educationSchema = z.object({
   year: trimmed(20),
 })
 
+export const sectionKeySchema = z.enum([
+  'experience',
+  'skills',
+  'projects',
+  'contact',
+])
+export type SectionKey = z.infer<typeof sectionKeySchema>
+
 export const contentSchema = z.object({
   name: trimmed(80),
   tagline: trimmed(120),
@@ -83,6 +91,9 @@ export const contentSchema = z.object({
   years_experience: optionalTrimmed(20),
   skills: z.array(skillCategorySchema).max(10).default([]),
   resume_url: z.string().url().max(500).optional(),
+  // Nav visibility — sections listed here are hidden from the nav bar.
+  // "profile" (About Me) cannot be hidden; it's always shown.
+  hidden_sections: z.array(sectionKeySchema).max(4).default([]),
 })
 
 export type Links = z.infer<typeof linksSchema>
