@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 // roughly mirrors the Profile card so content doesn't jump on arrival.
 export default function PublicSiteLoading() {
   return (
-    <div className="dark flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-2xl space-y-6 rounded-xl border border-white/10 bg-white/[0.02] p-8">
           <div className="flex items-center gap-4">

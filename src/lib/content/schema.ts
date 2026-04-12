@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { themeSchema } from '@/lib/themes/schema'
 
 // v1 SWE portfolio content schema — single source of truth.
 // Every downstream piece (LLM extraction, template renderer, chat-to-patch,
@@ -94,6 +95,8 @@ export const contentSchema = z.object({
   // Nav visibility — sections listed here are hidden from the nav bar.
   // "profile" (About Me) cannot be hidden; it's always shown.
   hidden_sections: z.array(sectionKeySchema).max(4).default([]),
+  // Visual theme — stores the preset ID. Resolved at render time via THEME_MAP.
+  theme: themeSchema.optional(),
 })
 
 export type Links = z.infer<typeof linksSchema>

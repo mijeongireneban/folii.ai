@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { loadPublishedSite } from './_lib'
 import { BottomMenu } from '@/components/template/v2/BottomMenu'
+import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
 
 // Public portfolio layout. Verifies the site exists + is published once per
 // request, 404s otherwise, then mounts dark surface + fixed bottom nav.
@@ -19,7 +20,7 @@ export default async function UsernameLayout({
   if (!data) notFound()
 
   return (
-    <div className="dark bg-background text-foreground flex min-h-screen flex-col">
+    <TemplateThemeProvider presetId={data.content.theme?.preset}>
       {children}
       <footer className="text-muted-foreground pointer-events-none fixed bottom-4 right-4 z-40 text-xs">
         <span className="pointer-events-auto">
@@ -36,6 +37,6 @@ export default async function UsernameLayout({
         </span>
       </footer>
       <BottomMenu basePath={`/${username}`} hiddenSections={data.content.hidden_sections} />
-    </div>
+    </TemplateThemeProvider>
   )
 }

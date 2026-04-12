@@ -14,6 +14,9 @@ import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
+import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
+import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
+import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -390,6 +393,18 @@ export function EditorClient({
     }
   }
 
+  function handleThemeChange(presetId: string) {
+    setContent((prev) => ({ ...prev, theme: { preset: presetId } }))
+    // Persist to server
+    fetch('/api/content', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...content, theme: { preset: presetId } }),
+    }).catch(() => {
+      // Fail silently — theme is already applied locally
+    })
+  }
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -422,6 +437,8 @@ export function EditorClient({
         onReset={handleReset}
         resetting={resetting}
         onUsernameChange={setUsername}
+        themeId={content.theme?.preset}
+        onThemeChange={handleThemeChange}
       />
 
       <div
@@ -460,7 +477,7 @@ export function EditorClient({
                 url={`folii.ai/${username}${SECTION_PATH[section]}`}
                 fullBleed={layout === 'focus'}
               >
-                <div className="dark relative flex min-h-full flex-col bg-background text-foreground">
+                <TemplateThemeProvider presetId={content.theme?.preset} className="relative flex min-h-full flex-col" fixedToggle={false}>
                   <SwePortfolio
                     content={content}
                     section={section}
@@ -491,7 +508,7 @@ export function EditorClient({
                       }))}
                     />
                   </div>
-                </div>
+                </TemplateThemeProvider>
               </BrowserFrame>
             </div>
           ) : (
@@ -786,6 +803,8 @@ function TopBar({
   onReset,
   resetting,
   onUsernameChange,
+  themeId,
+  onThemeChange,
 }: {
   username: string
   layout?: Layout
@@ -802,7 +821,51 @@ function TopBar({
   onReset?: () => void
   resetting?: boolean
   onUsernameChange?: (u: string) => void
+  themeId?: string
+  onThemeChange?: (id: string) => void
 }) {
+  const [themeOpen, setThemeOpen] = useState(false)
+  const themeRef = useRef<HTMLDivElement>(null)
+
+  // Close theme dropdown on outside click
+  useEffect(() => {
+    if (!themeOpen) return
+    function handleClick(e: MouseEvent) {
+      if (themeRef.current && !themeRef.current.contains(e.target as Node)) {
+        setThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [themeOpen])
+
+  // Arrow key navigation for theme dropdown — live preview on move
+  useEffect(() => {
+    if (!themeOpen || !onThemeChange) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Escape' && e.key !== 'Enter') return
+      e.preventDefault()
+      if (e.key === 'Escape') {
+        setThemeOpen(false)
+        return
+      }
+      if (e.key === 'Enter') {
+        setThemeOpen(false)
+        return
+      }
+      const currentIdx = THEME_PRESETS.findIndex((t) => t.id === (themeId ?? DEFAULT_THEME_ID))
+      const next = e.key === 'ArrowDown'
+        ? (currentIdx + 1) % THEME_PRESETS.length
+        : (currentIdx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length
+      onThemeChange!(THEME_PRESETS[next].id)
+      // Scroll the active item into view
+      const container = themeRef.current?.querySelector('[data-theme-list]')
+      const activeBtn = container?.querySelector(`[data-theme-id="${THEME_PRESETS[next].id}"]`)
+      activeBtn?.scrollIntoView({ block: 'nearest' })
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [themeOpen, themeId, onThemeChange])
   return (
     <header style={styles.topbar} className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
@@ -858,6 +921,93 @@ function TopBar({
             >
               Focus
             </button>
+          </div>
+        )}
+        {onThemeChange && (
+          <div ref={themeRef} style={{ position: 'relative' }} className="editor-btn-theme">
+            <button
+              onClick={() => setThemeOpen((v) => !v)}
+              style={{
+                ...styles.ghostBtn,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: (THEME_PRESETS.find((t) => t.id === (themeId ?? DEFAULT_THEME_ID))?.vars['--primary']) ?? '#fff',
+                  border: '1.5px solid rgba(255,255,255,0.2)',
+                  flexShrink: 0,
+                }}
+              />
+              Theme
+            </button>
+            {themeOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: 6,
+                  background: '#111',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  padding: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  width: 200,
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  zIndex: 50,
+                }}
+                data-theme-list
+              >
+                {THEME_PRESETS.map((t) => {
+                  const active = (themeId ?? DEFAULT_THEME_ID) === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      data-theme-id={t.id}
+                      onClick={() => {
+                        onThemeChange(t.id)
+                        setThemeOpen(false)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: active ? '1px solid rgba(255,255,255,0.3)' : '1px solid transparent',
+                        background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        color: '#e5e5e5',
+                        fontSize: 12,
+                        fontFamily: 'inherit',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 4,
+                          flexShrink: 0,
+                          background: t.vars['--background'],
+                          border: `2px solid ${t.vars['--primary']}`,
+                        }}
+                      />
+                      {t.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
         {onPublishToggle && (
