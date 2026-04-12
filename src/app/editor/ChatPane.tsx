@@ -31,7 +31,6 @@ export function ChatPane({
   uploadError,
   chatError,
   dailyRemaining,
-  isFocusLayout,
 }: {
   messages: Msg[]
   content: Content
@@ -44,7 +43,6 @@ export function ChatPane({
   uploadError: string | null
   chatError: string | null
   dailyRemaining: number | null
-  isFocusLayout: boolean
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
@@ -95,10 +93,7 @@ export function ChatPane({
   return (
     <aside
       className="editor-chat-pane"
-      style={{
-        ...styles.chatPane,
-        ...(isFocusLayout ? styles.chatPaneFocus : {}),
-      }}
+      style={styles.chatPane}
     >
       <div style={styles.chatHeader} className="editor-chat-header">
         <span style={styles.chatHeaderLabel} className="editor-chat-header-label">

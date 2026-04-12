@@ -28,9 +28,8 @@ const SECTION_PATH: Record<PortfolioSection, string> = {
 import { signOut } from '@/app/auth/actions'
 import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
-type Layout = 'split' | 'focus'
+
 type Mode = 'preview' | 'json'
-const LAYOUT_KEY = 'folii:editor:layout'
 
 export function EditorClient({
   initialContent,
@@ -65,7 +64,6 @@ export function EditorClient({
   const [publishDirty, setPublishDirty] = useState(false)
   const skipDirtyRef = useRef(true)
   const [resetting, setResetting] = useState(false)
-  const [layout, setLayout] = useState<Layout>('split')
   const [mode, setMode] = useState<Mode>('preview')
   const [section, setSection] = useState<PortfolioSection>('profile')
   const [jsonDraft, setJsonDraft] = useState('')
@@ -79,15 +77,6 @@ export function EditorClient({
   const [chatError, setChatError] = useState<string | null>(null)
   const [dailyRemaining, setDailyRemaining] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
-
-  // Load persisted layout preference
-  useEffect(() => {
-    const saved = localStorage.getItem(LAYOUT_KEY) as Layout | null
-    if (saved === 'split' || saved === 'focus') setLayout(saved)
-  }, [])
-  useEffect(() => {
-    localStorage.setItem(LAYOUT_KEY, layout)
-  }, [layout])
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -408,7 +397,7 @@ export function EditorClient({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <main style={styles.main} data-layout={layout}>
+    <main style={styles.main}>
       <style>{EDITOR_MEDIA_CSS}</style>
       <input
         ref={fileInputRef}
@@ -423,8 +412,6 @@ export function EditorClient({
       />
       <TopBar
         username={username}
-        layout={layout}
-        onLayoutChange={setLayout}
         mode={mode}
         onEnterJson={enterJsonMode}
         onExitJson={() => setMode('preview')}
@@ -444,18 +431,12 @@ export function EditorClient({
 
       <div
         className="editor-workspace"
-        style={{
-          ...styles.workspace,
-          ...(layout === 'focus' ? styles.workspaceFocus : {}),
-        }}
+        style={styles.workspace}
       >
         {/* Preview */}
         <section
           className="editor-preview-pane"
-          style={{
-            ...styles.previewPane,
-            ...(layout === 'focus' ? styles.previewPaneFocus : {}),
-          }}
+          style={styles.previewPane}
         >
           {uploading && (
             <div style={styles.parsingOverlay}>
@@ -469,14 +450,11 @@ export function EditorClient({
           {mode === 'preview' ? (
             <div
               className="editor-preview-frame"
-              style={{
-                ...styles.previewFrame,
-                ...(layout === 'focus' ? { padding: 12 } : {}),
-              }}
+              style={styles.previewFrame}
             >
               <BrowserFrame
                 url={`folii.ai/${username}${SECTION_PATH[section]}`}
-                fullBleed={layout === 'focus'}
+
               >
                 <TemplateThemeProvider presetId={content.theme?.preset} className="relative flex min-h-full flex-col" fixedToggle={false}>
                   <SwePortfolio
@@ -569,7 +547,6 @@ export function EditorClient({
           uploadError={uploadError}
           chatError={chatError}
           dailyRemaining={dailyRemaining}
-          isFocusLayout={layout === 'focus'}
         />
       </div>
     </main>
@@ -790,8 +767,6 @@ function UsernameEditor({
 
 function TopBar({
   username,
-  layout,
-  onLayoutChange,
   mode,
   onEnterJson,
   onExitJson,
@@ -809,8 +784,6 @@ function TopBar({
   onSendChat,
 }: {
   username: string
-  layout?: Layout
-  onLayoutChange?: (l: Layout) => void
   mode?: Mode
   onEnterJson?: () => void
   onExitJson?: () => void
@@ -998,28 +971,6 @@ function TopBar({
           >
             {mode === 'json' ? 'Preview' : '{ } JSON'}
           </button>
-        )}
-        {layout && onLayoutChange && (
-          <div style={styles.segmented} className="editor-layout-toggle">
-            <button
-              onClick={() => onLayoutChange('split')}
-              style={{
-                ...styles.segBtn,
-                ...(layout === 'split' ? styles.segBtnActive : {}),
-              }}
-            >
-              Split
-            </button>
-            <button
-              onClick={() => onLayoutChange('focus')}
-              style={{
-                ...styles.segBtn,
-                ...(layout === 'focus' ? styles.segBtnActive : {}),
-              }}
-            >
-              Focus
-            </button>
-          </div>
         )}
         {onThemeChange && (
           <div ref={themeRef} style={{ position: 'relative' }} className="editor-btn-theme">
