@@ -116,16 +116,25 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
 }
 
 // Convenience wrapper: builds the 5 standard items for a folii portfolio,
-// scoped under /[username].
-export function BottomMenu({ basePath }: { basePath: string }) {
+// scoped under /[username]. Respects hidden_sections from Content schema.
+export function BottomMenu({
+  basePath,
+  hiddenSections = [],
+}: {
+  basePath: string
+  hiddenSections?: string[]
+}) {
   const pathname = usePathname()
-  const items: MenuBarItem[] = [
+  const allItems: (MenuBarItem & { sectionKey?: string })[] = [
     { icon: User, label: 'About Me', href: basePath || '/' },
-    { icon: Briefcase, label: 'Work Experience', href: `${basePath}/experience` },
-    { icon: Wrench, label: 'Skills', href: `${basePath}/skills` },
-    { icon: FolderKanban, label: 'Projects', href: `${basePath}/projects` },
-    { icon: Mail, label: 'Contact', href: `${basePath}/contact` },
+    { sectionKey: 'experience', icon: Briefcase, label: 'Work Experience', href: `${basePath}/experience` },
+    { sectionKey: 'skills', icon: Wrench, label: 'Skills', href: `${basePath}/skills` },
+    { sectionKey: 'projects', icon: FolderKanban, label: 'Projects', href: `${basePath}/projects` },
+    { sectionKey: 'contact', icon: Mail, label: 'Contact', href: `${basePath}/contact` },
   ]
+  const items = allItems.filter(
+    (item) => !item.sectionKey || !hiddenSections.includes(item.sectionKey)
+  )
   return (
     <div className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2">
       <MenuBar items={items} activeHref={pathname} />

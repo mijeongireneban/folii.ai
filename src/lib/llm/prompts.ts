@@ -103,6 +103,7 @@ The content schema now includes the following fields in addition to name/tagline
 - experience[].location, experience[].achievements[], experience[].technologies[]
 - projects[].category, projects[].built_with, projects[].release_url, projects[].screenshot, projects[].screenshot_alt
 - skills[] grouped by category, each { category, icon, items[] }
+- hidden_sections: an array of section keys to hide from the nav bar. Valid keys: "experience", "skills", "projects", "contact". The "profile" (About Me) page is always visible and cannot be hidden. Example: to remove Skills and Contact from the nav, set hidden_sections to ["skills", "contact"]. To restore a section, remove it from the array.
 
 Rules:
 - Output JSON only. No prose, no markdown fences.
@@ -112,6 +113,7 @@ Rules:
 - Keep all strings under schema length caps. Achievements <=500, headline_points <=120, tagline <=120, bio <=1200, impact <=240.
 - Never invent employment, education, URLs, or screenshots. If the user asks you to add something you have no evidence for, ask them to provide the details (return the content unchanged and set a "_needs_info" key with your question).
 - Do not include any top-level field named icon, banner_image, or illustration. (Within a skills[] entry, "icon" is allowed and refers to a lucide icon name.)
+- When the user asks to remove, hide, or disable a nav bar item (e.g. "remove Skills from my nav", "hide the Contact page"), add the matching key to hidden_sections. When they ask to restore, show, or re-add it, remove the key from hidden_sections. Do NOT delete the section's data — only toggle visibility.
 - If the request is ambiguous, make the smallest reasonable interpretation and apply it.
 - If the request is harmful, off-topic, or would damage the portfolio (e.g. "delete everything"), return the content unchanged.
 
