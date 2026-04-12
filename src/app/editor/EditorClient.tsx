@@ -397,15 +397,22 @@ export function EditorClient({
           .editor-topbar {
             padding: 10px 12px !important;
           }
+          .editor-topbar-left {
+            gap: 8px !important;
+          }
           .editor-topbar-right {
-            gap: 6px !important;
+            gap: 4px !important;
           }
           .editor-topbar-right button,
           .editor-topbar-right a {
             font-size: 11px !important;
-            padding: 5px 10px !important;
+            padding: 5px 8px !important;
           }
-          .editor-layout-toggle {
+          .editor-layout-toggle,
+          .editor-btn-upload,
+          .editor-btn-json,
+          .editor-btn-reset,
+          .editor-live-link {
             display: none !important;
           }
           .editor-preview-frame {
@@ -418,11 +425,6 @@ export function EditorClient({
           }
           .editor-preview-pane {
             padding-bottom: 260px !important;
-          }
-          .editor-topbar-right button,
-          .editor-topbar-right a {
-            font-size: 11px !important;
-            padding: 4px 8px !important;
           }
         }
       `}</style>
@@ -972,7 +974,7 @@ function TopBar({
 }) {
   return (
     <header style={styles.topbar} className="editor-topbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
         <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
           folii.ai
         </a>
@@ -983,6 +985,7 @@ function TopBar({
           <button
             onClick={onUploadClick}
             disabled={uploading}
+            className="editor-btn-upload"
             style={{
               ...styles.ghostBtn,
               ...(uploading ? styles.btnBusy : {}),
@@ -998,6 +1001,7 @@ function TopBar({
         {mode && onEnterJson && onExitJson && (
           <button
             onClick={mode === 'json' ? onExitJson : onEnterJson}
+            className="editor-btn-json"
             style={styles.ghostBtn}
           >
             {mode === 'json' ? 'Preview' : '{ } JSON'}
@@ -1032,6 +1036,7 @@ function TopBar({
                 href={`/${username}`}
                 target="_blank"
                 rel="noreferrer"
+                className="editor-live-link"
                 style={styles.liveLink}
               >
                 /{username} ↗
@@ -1062,6 +1067,7 @@ function TopBar({
           <button
             onClick={onReset}
             disabled={resetting}
+            className="editor-btn-reset"
             style={{
               ...styles.ghostBtn,
               ...(resetting ? styles.btnBusy : {}),
