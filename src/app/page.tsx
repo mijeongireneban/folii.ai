@@ -1,11 +1,10 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-// Landing page for signed-out visitors. Signed-in users get bounced to
-// /editor so this page is only seen once. Per DESIGN.md: black background,
+// Landing page — visible to both signed-out and signed-in users.
+// Serves as the marketing/docs hub. Per DESIGN.md: black background,
 // Cabinet Grotesk display type, Framer Blue accent, pill CTAs.
 
 const LIVE_EXAMPLE_URL = 'https://www.mijeong.dev/'
@@ -15,7 +14,6 @@ export default async function RootPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (user) redirect('/editor')
 
   return (
     <main style={styles.main}>
@@ -81,12 +79,20 @@ export default async function RootPage() {
       <nav style={styles.nav} className="landing-nav">
         <div style={styles.brand}>folii.ai</div>
         <div style={styles.navRight}>
-          <Link href="/auth/login" style={styles.navLink}>
-            Log in
-          </Link>
-          <Link href="/auth/signup" style={styles.navCta}>
-            Get started
-          </Link>
+          {user ? (
+            <Link href="/editor" style={styles.navCta}>
+              Open editor
+            </Link>
+          ) : (
+            <>
+              <Link href="/auth/login" style={styles.navLink}>
+                Log in
+              </Link>
+              <Link href="/auth/signup" style={styles.navCta}>
+                Get started
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -101,8 +107,8 @@ export default async function RootPage() {
           drag-and-drop builders, no theme stores, no design homework.
         </p>
         <div style={styles.heroCtas}>
-          <Link href="/auth/signup" style={styles.primaryCta}>
-            Start for free
+          <Link href={user ? '/editor' : '/auth/signup'} style={styles.primaryCta}>
+            {user ? 'Open editor' : 'Start for free'}
           </Link>
           <a
             href={LIVE_EXAMPLE_URL}
@@ -163,20 +169,28 @@ export default async function RootPage() {
 
       <section style={styles.finalCta} className="landing-final-cta">
         <h2 style={styles.finalCtaTitle} className="landing-final-cta-title">Ship yours today.</h2>
-        <Link href="/auth/signup" style={styles.primaryCta}>
-          Start for free
+        <Link href={user ? '/editor' : '/auth/signup'} style={styles.primaryCta}>
+          {user ? 'Open editor' : 'Start for free'}
         </Link>
       </section>
 
       <footer style={styles.footer} className="landing-footer">
         <div style={styles.footerBrand}>folii.ai</div>
         <div style={styles.footerLinks}>
-          <Link href="/auth/login" style={styles.footerLink}>
-            Log in
-          </Link>
-          <Link href="/auth/signup" style={styles.footerLink}>
-            Sign up
-          </Link>
+          {user ? (
+            <Link href="/editor" style={styles.footerLink}>
+              Editor
+            </Link>
+          ) : (
+            <>
+              <Link href="/auth/login" style={styles.footerLink}>
+                Log in
+              </Link>
+              <Link href="/auth/signup" style={styles.footerLink}>
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </footer>
     </main>
