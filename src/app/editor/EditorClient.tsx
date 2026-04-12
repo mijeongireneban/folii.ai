@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import type { Content } from '@/lib/content/schema'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import type { ChatMessage } from '@/lib/supabase/types'
@@ -77,6 +77,7 @@ export function EditorClient({
   const [chatError, setChatError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Load persisted layout preference
   useEffect(() => {
@@ -94,6 +95,15 @@ export function EditorClient({
       behavior: 'smooth',
     })
   }, [messages.length])
+
+  useLayoutEffect(() => {
+    const el = chatInputRef.current
+    if (!el) return
+    el.style.height = '0px'
+    const nextHeight = Math.min(el.scrollHeight, 160)
+    el.style.height = `${Math.max(nextHeight, 44)}px`
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'
+  }, [input])
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -619,12 +629,21 @@ export function EditorClient({
           })()}
           <form onSubmit={handleSend} style={styles.chatForm}>
             <div style={styles.chatInputWrap}>
-              <input
+              <textarea
+                ref={chatInputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Tell folii what to change…"
                 style={styles.chatInput}
                 disabled={isPending}
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault()
+                    if (!input.trim() || isPending) return
+                    e.currentTarget.form?.requestSubmit()
+                  }
+                }}
               />
               <button
                 type="submit"
@@ -642,6 +661,7 @@ export function EditorClient({
                 )}
               </button>
             </div>
+            <div style={styles.chatHint}>Enter to send, Shift+Enter for a newline.</div>
           </form>
         </aside>
       </div>
@@ -1296,6 +1316,8 @@ const styles = {
     fontSize: 14,
     lineHeight: 1.55,
     maxWidth: '82%',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   } as const,
   msgLabel: {
     fontSize: 10,
@@ -1348,6 +1370,8 @@ const styles = {
   } as const,
   chatForm: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
     padding: 16,
     borderTop: '1px solid rgba(255,255,255,0.06)',
   } as const,
@@ -1355,24 +1379,28 @@ const styles = {
     flex: 1,
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   } as const,
   chatInput: {
     flex: 1,
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 100,
+    borderRadius: 18,
     padding: '12px 52px 12px 18px',
     color: '#fff',
     fontSize: 14,
     fontFamily: 'inherit',
     outline: 'none',
+    lineHeight: 1.45,
+    minHeight: 44,
+    maxHeight: 160,
+    resize: 'none',
+    overflowY: 'hidden',
   } as const,
   sendBtn: {
     position: 'absolute',
     right: 6,
-    top: '50%',
-    transform: 'translateY(-50%)',
+    bottom: 6,
     width: 32,
     height: 32,
     background: '#fff',
@@ -1384,6 +1412,11 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     fontFamily: 'inherit',
+  } as const,
+  chatHint: {
+    fontSize: 11,
+    color: '#8a8a8a',
+    paddingLeft: 4,
   } as const,
 
   dropzone: {
