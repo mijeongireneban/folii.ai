@@ -6,6 +6,7 @@ import { chatEdit } from '@/lib/llm/chatEdit'
 import { contentSchema, type Content } from '@/lib/content/schema'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { fetchGitHubReposFromMessage, formatRepoContext } from '@/lib/github/fetch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -90,8 +91,15 @@ export async function POST(request: NextRequest) {
     content: body.message,
   })
 
-  // 6. Run the edit
-  const result = await chatEdit(current, body.message)
+  // 6. Enrich message with GitHub repo data if URLs are detected
+  let enrichedMessage = body.message
+  const repos = await fetchGitHubReposFromMessage(body.message)
+  if (repos.length > 0) {
+    enrichedMessage = body.message + formatRepoContext(repos)
+  }
+
+  // 7. Run the edit
+  const result = await chatEdit(current, enrichedMessage)
   if (!result.ok) {
     // Save an assistant error message so the user sees what happened.
     await admin.from('chat_messages').insert({

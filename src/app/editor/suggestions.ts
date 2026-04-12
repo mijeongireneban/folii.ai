@@ -41,8 +41,9 @@ export function getSuggestions(content: Content, isPlaceholder: boolean, max = 4
   if (expNoTech)
     s.push(`Add technologies used at ${expNoTech.company}`)
 
-  // Projects quality
-  if (proj.length > 0 && proj.length < 3) s.push('Add another project')
+  // Projects quality — suggest GitHub import when projects are sparse
+  if (proj.length > 0 && proj.length < 3) s.push('Import a project from GitHub')
+  if (proj.length === 0 && exp.length > 0) s.push('Import a project from GitHub')
   const projNoTech = proj.find((p) => (p.tech?.length ?? 0) === 0)
   if (projNoTech)
     s.push(`Add tech stack for ${projNoTech.title}`)
