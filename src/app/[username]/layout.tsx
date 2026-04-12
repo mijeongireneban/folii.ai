@@ -35,7 +35,7 @@ export default async function UsernameLayout({
           with 💙
         </span>
       </footer>
-      <BottomMenu basePath={`/${username}`} />
+      <BottomMenu basePath={`/${username}`} hiddenSections={data.content.hidden_sections} />
     </div>
   )
 }

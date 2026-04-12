@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   //    If no site row exists yet, create one seeded with placeholder content
   //    so the user can start chatting without an upload.
   const admin = createAdminClient()
-  let { data: site, error: siteErr } = await admin
+  const { data: site, error: siteErr } = await admin
     .from('sites')
     .select('id, content')
     .eq('owner_id', user.id)

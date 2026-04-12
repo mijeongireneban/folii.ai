@@ -73,7 +73,7 @@ export default async function RootPage() {
             <div style={styles.stepNum}>02</div>
             <div style={styles.stepTitle}>Edit in chat</div>
             <p style={styles.stepBody}>
-              Say "tighten the bio" or "add a project about X". The preview
+              Say &quot;tighten the bio&quot; or &quot;add a project about X&quot;. The preview
               updates live. Undo any edit from the chat history.
             </p>
           </li>

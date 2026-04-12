@@ -3,8 +3,11 @@
 import * as React from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  getVisiblePortfolioNavItems,
+  type PortfolioNavItem,
+} from './portfolioNav'
 
 // Fixed bottom nav — ported from abt-mj/components/menu. Uses the hover-tooltip
 // MenuBar pattern but with lucide icons and plain anchors (router-agnostic;
@@ -115,17 +118,23 @@ export function MenuBar({ items, activeHref, className }: MenuBarProps) {
   )
 }
 
-// Convenience wrapper: builds the 5 standard items for a folii portfolio,
-// scoped under /[username].
-export function BottomMenu({ basePath }: { basePath: string }) {
+// Convenience wrapper: builds the standard items for a folii portfolio,
+// scoped under /[username], and filters out any hidden sections.
+export function BottomMenu({
+  basePath,
+  hiddenSections,
+}: {
+  basePath: string
+  hiddenSections?: unknown
+}) {
   const pathname = usePathname()
-  const items: MenuBarItem[] = [
-    { icon: User, label: 'About Me', href: basePath || '/' },
-    { icon: Briefcase, label: 'Work Experience', href: `${basePath}/experience` },
-    { icon: Wrench, label: 'Skills', href: `${basePath}/skills` },
-    { icon: FolderKanban, label: 'Projects', href: `${basePath}/projects` },
-    { icon: Mail, label: 'Contact', href: `${basePath}/contact` },
-  ]
+  const items: MenuBarItem[] = getVisiblePortfolioNavItems(hiddenSections).map(
+    (item: PortfolioNavItem) => ({
+      icon: item.icon,
+      label: item.label,
+      href: item.href === '/' ? basePath || '/' : `${basePath}${item.href}`,
+    })
+  )
   return (
     <div className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2">
       <MenuBar items={items} activeHref={pathname} />

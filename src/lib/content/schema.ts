@@ -15,6 +15,16 @@ const optionalTrimmed = (max: number) =>
     .optional()
     .transform((v) => (v === '' ? undefined : v))
 
+export const PORTFOLIO_SECTIONS = [
+  'profile',
+  'experience',
+  'skills',
+  'projects',
+  'contact',
+] as const
+export const portfolioSectionSchema = z.enum(PORTFOLIO_SECTIONS)
+export type PortfolioSection = z.infer<typeof portfolioSectionSchema>
+
 export const linksSchema = z.object({
   github: z.string().url().max(200).optional(),
   twitter: z.string().url().max(200).optional(),
@@ -82,6 +92,8 @@ export const contentSchema = z.object({
   headline_points: z.array(trimmed(120)).max(4).default([]),
   years_experience: optionalTrimmed(20),
   skills: z.array(skillCategorySchema).max(10).default([]),
+  // Nav items hidden from the editor preview and published bottom menu.
+  hidden_sections: z.array(portfolioSectionSchema).max(5).default([]),
   resume_url: z.string().url().max(500).optional(),
 })
 

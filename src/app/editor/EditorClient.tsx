@@ -1,17 +1,22 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import type { Content } from '@/lib/content/schema'
+import type { PortfolioSection } from '@/lib/content/schema'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
 import type { ChatMessage } from '@/lib/supabase/types'
-import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
+import { SwePortfolio } from '@/components/template/SwePortfolio'
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
-import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
-import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2, RotateCcw, ArrowUp } from 'lucide-react'
+import { MenuBar } from '@/components/template/v2/BottomMenu'
+import { getVisiblePortfolioNavItems } from '@/components/template/v2/portfolioNav'
+import { Loader2, RotateCcw, ArrowUp } from 'lucide-react'
 import { useFormStatus } from 'react-dom'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { signOut } from '@/app/auth/actions'
+import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -20,8 +25,6 @@ const SECTION_PATH: Record<PortfolioSection, string> = {
   projects: '/projects',
   contact: '/contact',
 }
-import { signOut } from '@/app/auth/actions'
-import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 type Layout = 'split' | 'focus'
 type Mode = 'preview' | 'json'
@@ -77,6 +80,7 @@ export function EditorClient({
   const [chatError, setChatError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const chatScrollRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   // Load persisted layout preference
   useEffect(() => {
@@ -94,6 +98,15 @@ export function EditorClient({
       behavior: 'smooth',
     })
   }, [messages.length])
+
+  useLayoutEffect(() => {
+    const el = chatInputRef.current
+    if (!el) return
+    el.style.height = '0px'
+    const nextHeight = Math.min(el.scrollHeight, 160)
+    el.style.height = `${Math.max(nextHeight, 44)}px`
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden'
+  }, [input])
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -443,22 +456,16 @@ export function EditorClient({
                     uploadingAvatar={uploadingAvatar}
                   />
                   <div className="pointer-events-none absolute inset-x-0 bottom-3 z-50 flex justify-center [&>*]:pointer-events-auto">
-                    <MenuBar
+                  <MenuBar
                       activeHref={SECTION_PATH[section] || '/'}
-                      items={(
-                        [
-                          { key: 'profile', icon: User, label: 'About Me', href: '/' },
-                          { key: 'experience', icon: Briefcase, label: 'Work Experience', href: '/experience' },
-                          { key: 'skills', icon: Wrench, label: 'Skills', href: '/skills' },
-                          { key: 'projects', icon: FolderKanban, label: 'Projects', href: '/projects' },
-                          { key: 'contact', icon: Mail, label: 'Contact', href: '/contact' },
-                        ] as { key: PortfolioSection; icon: MenuBarItem['icon']; label: string; href: string }[]
-                      ).map((s) => ({
-                        icon: s.icon,
-                        label: s.label,
-                        href: s.href,
-                        onClick: () => setSection(s.key),
-                      }))}
+                      items={getVisiblePortfolioNavItems(content.hidden_sections).map(
+                        (item) => ({
+                          icon: item.icon,
+                          label: item.label,
+                          href: item.href === '/' ? '/' : item.href,
+                          onClick: () => setSection(item.key),
+                        })
+                      )}
                     />
                   </div>
                 </div>
@@ -619,12 +626,21 @@ export function EditorClient({
           })()}
           <form onSubmit={handleSend} style={styles.chatForm}>
             <div style={styles.chatInputWrap}>
-              <input
+              <textarea
+                ref={chatInputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Tell folii what to change…"
                 style={styles.chatInput}
                 disabled={isPending}
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault()
+                    if (!input.trim() || isPending) return
+                    e.currentTarget.form?.requestSubmit()
+                  }
+                }}
               />
               <button
                 type="submit"
@@ -642,6 +658,7 @@ export function EditorClient({
                 )}
               </button>
             </div>
+            <div style={styles.chatHint}>Enter to send, Shift+Enter for a newline.</div>
           </form>
         </aside>
       </div>
@@ -897,9 +914,9 @@ function TopBar({
   return (
     <header style={styles.topbar}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
+        <Link href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
           folii.ai
-        </a>
+        </Link>
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>
       <div style={styles.topbarRight}>
@@ -1023,52 +1040,6 @@ function SignOutButton() {
       {pending && <Loader2 size={14} className="animate-spin" />}
       {pending ? 'Signing out…' : 'Sign out'}
     </button>
-  )
-}
-
-function Dropzone({
-  onFile,
-  uploading,
-}: {
-  onFile: (f: File) => void
-  uploading: boolean
-}) {
-  const [drag, setDrag] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDrag(true)
-      }}
-      onDragLeave={() => setDrag(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDrag(false)
-        const f = e.dataTransfer.files[0]
-        if (f) onFile(f)
-      }}
-      onClick={() => inputRef.current?.click()}
-      style={{
-        ...styles.dropzone,
-        ...(drag ? styles.dropzoneActive : {}),
-      }}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onFile(f)
-        }}
-      />
-      <div style={styles.dropzoneTitle}>
-        {uploading ? 'Parsing…' : 'Drop resume here'}
-      </div>
-      <div style={styles.dropzoneHint}>PDF, TXT, or MD · up to 5 MB</div>
-    </div>
   )
 }
 
@@ -1296,6 +1267,8 @@ const styles = {
     fontSize: 14,
     lineHeight: 1.55,
     maxWidth: '82%',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   } as const,
   msgLabel: {
     fontSize: 10,
@@ -1348,6 +1321,8 @@ const styles = {
   } as const,
   chatForm: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
     padding: 16,
     borderTop: '1px solid rgba(255,255,255,0.06)',
   } as const,
@@ -1355,24 +1330,28 @@ const styles = {
     flex: 1,
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   } as const,
   chatInput: {
     flex: 1,
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 100,
+    borderRadius: 18,
     padding: '12px 52px 12px 18px',
     color: '#fff',
     fontSize: 14,
     fontFamily: 'inherit',
     outline: 'none',
+    lineHeight: 1.45,
+    minHeight: 44,
+    maxHeight: 160,
+    resize: 'none',
+    overflowY: 'hidden',
   } as const,
   sendBtn: {
     position: 'absolute',
     right: 6,
-    top: '50%',
-    transform: 'translateY(-50%)',
+    bottom: 6,
     width: 32,
     height: 32,
     background: '#fff',
@@ -1384,6 +1363,11 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     fontFamily: 'inherit',
+  } as const,
+  chatHint: {
+    fontSize: 11,
+    color: '#8a8a8a',
+    paddingLeft: 4,
   } as const,
 
   dropzone: {

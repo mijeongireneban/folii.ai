@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest) {
   const admin = createAdminClient()
 
   // Upsert site row if missing (parallel to /api/chat behavior).
-  let { data: site, error: siteErr } = await admin
+  const { data: site, error: siteErr } = await admin
     .from('sites')
     .select('id')
     .eq('owner_id', user.id)

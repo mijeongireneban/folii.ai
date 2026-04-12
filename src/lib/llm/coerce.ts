@@ -4,6 +4,8 @@
 // wild; new branches should include a comment pointing at the raw output
 // that prompted them.
 
+import { coerceHiddenSections } from '@/components/template/v2/portfolioNav'
+
 type Obj = Record<string, unknown>
 
 function isObj(v: unknown): v is Obj {
@@ -277,6 +279,16 @@ export function coerceContent(input: unknown): unknown {
       out.skills = coerced
     }
   }
+
+  // hidden_sections: accept a few aliases and normalize section names.
+  const hiddenSectionsSource =
+    out.hidden_sections ?? out.hiddenSections ?? out.removed_sections ?? out.removedSections
+  if (hiddenSectionsSource !== undefined) {
+    out.hidden_sections = coerceHiddenSections(hiddenSectionsSource)
+  }
+  delete out.hiddenSections
+  delete out.removed_sections
+  delete out.removedSections
 
   // headline_points: allow a single string OR an array.
   if ('headline_points' in out) {
