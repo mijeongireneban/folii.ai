@@ -34,7 +34,7 @@ export function ExperiencePage({ content }: { content: Content }) {
             <AccordionItem
               key={index}
               value={`item-${index}`}
-              className="bg-card rounded-lg border px-6 shadow-sm"
+              className="bg-card rounded-lg border px-4 shadow-sm sm:px-6"
             >
               <AccordionTrigger className="items-start py-6 hover:no-underline">
                 <div className="flex flex-col items-start gap-2.5 text-left">
