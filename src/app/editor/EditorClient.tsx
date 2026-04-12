@@ -7,13 +7,13 @@ import type { ChatMessage } from '@/lib/supabase/types'
 import { SwePortfolio, type PortfolioSection } from '@/components/template/SwePortfolio'
 import { BrowserFrame } from '@/components/template/v2/BrowserFrame'
 import { MenuBar, type MenuBarItem } from '@/components/template/v2/BottomMenu'
-import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2, RotateCcw, ArrowUp } from 'lucide-react'
+import { User, Briefcase, Wrench, FolderKanban, Mail, Loader2 } from 'lucide-react'
 import { useFormStatus } from 'react-dom'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
-import { getSuggestions } from './suggestions'
+import { ChatPane, type Msg } from './ChatPane'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -27,10 +27,6 @@ import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 type Layout = 'split' | 'focus'
 type Mode = 'preview' | 'json'
-type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'> & {
-  error?: string
-}
-
 const LAYOUT_KEY = 'folii:editor:layout'
 
 export function EditorClient({
@@ -75,13 +71,11 @@ export function EditorClient({
   const [reverting, setReverting] = useState<string | null>(null)
   const [uploadingProjectIndex, setUploadingProjectIndex] = useState<number | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [input, setInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [chatError, setChatError] = useState<string | null>(null)
   const [dailyRemaining, setDailyRemaining] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
-  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   // Load persisted layout preference
   useEffect(() => {
@@ -91,14 +85,6 @@ export function EditorClient({
   useEffect(() => {
     localStorage.setItem(LAYOUT_KEY, layout)
   }, [layout])
-
-  // Autoscroll chat
-  useEffect(() => {
-    chatScrollRef.current?.scrollTo({
-      top: chatScrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    })
-  }, [messages.length])
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -201,20 +187,6 @@ export function EditorClient({
         },
       ])
     })
-  }
-
-  function handleSend(e: React.FormEvent) {
-    e.preventDefault()
-    const text = input.trim()
-    if (!text || isPending) return
-    setInput('')
-    const textarea = (e.currentTarget as HTMLElement).querySelector('textarea')
-    if (textarea) textarea.style.height = 'auto'
-    sendMessage(text)
-  }
-
-  function handleRetry(msgId: string, text: string) {
-    sendMessage(text, msgId)
   }
 
   async function handleRevert(messageId: string) {
@@ -567,159 +539,20 @@ export function EditorClient({
         </section>
 
         {/* Chat */}
-        <aside
-          className="editor-chat-pane"
-          style={{
-            ...styles.chatPane,
-            ...(layout === 'focus' ? styles.chatPaneFocus : {}),
-          }}
-        >
-          {(() => {
-            const lastRevertable = [...messages]
-              .reverse()
-              .find(
-                (m) =>
-                  m.role === 'assistant' &&
-                  !!m.content_after &&
-                  !m.id.startsWith('tmp-'),
-              )
-            return (
-              <div style={styles.chatHeader} className="editor-chat-header">
-                <span style={styles.chatHeaderLabel} className="editor-chat-header-label">
-                  CHAT · REFINE YOUR PORTFOLIO
-                </span>
-                <button
-                  type="button"
-                  onClick={() => lastRevertable && handleRevert(lastRevertable.id)}
-                  disabled={!lastRevertable || reverting === lastRevertable?.id}
-                  style={{
-                    ...styles.revertLastBtn,
-                    ...(!lastRevertable ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
-                  }}
-                >
-                  <RotateCcw size={12} />
-                  {reverting && lastRevertable && reverting === lastRevertable.id
-                    ? 'Reverting…'
-                    : 'Revert last'}
-                </button>
-              </div>
-            )
-          })()}
-          <div ref={chatScrollRef} style={styles.chatScroll} className="editor-chat-scroll">
-            {messages.length === 0 && (
-              <p style={styles.hint}>
-                {isPlaceholder
-                  ? 'Upload your resume to populate the preview, or start describing your portfolio in chat. Try: "I\'m a staff engineer at Acme working on developer tools".'
-                  : 'Try: "tighten the bio", "add a project about X", or "rewrite my Acme impact line to quantify it".'}
-              </p>
-            )}
-            {uploadError && (
-              <p style={styles.error}>Upload failed: {uploadError}</p>
-            )}
-            {messages.map((m) => {
-              const isUser = m.role === 'user'
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    ...styles.msg,
-                    ...(isUser ? styles.msgUser : styles.msgAssistant),
-                    ...(m.error ? styles.msgError : {}),
-                  }}
-                >
-                  {!isUser && <div style={styles.msgLabel}>FOLII</div>}
-                  <div>{m.content}</div>
-                  {m.error && (
-                    <div style={styles.msgErrorFooter}>
-                      <span style={styles.msgErrorText}>{m.error}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRetry(m.id, m.content)}
-                        disabled={isPending}
-                        style={styles.retryBtn}
-                      >
-                        <RotateCcw size={11} />
-                        Retry
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {isPending && (
-              <div style={styles.thinking}>
-                <Loader2 size={14} className="animate-spin" />
-                <span>Thinking…</span>
-              </div>
-            )}
-            {chatError && <p style={styles.error}>{chatError}</p>}
-          </div>
-          {(() => {
-            const suggestions = getSuggestions(content, isPlaceholder)
-            if (suggestions.length === 0 || isPending) return null
-            return (
-              <div style={styles.suggestions} className="editor-suggestions">
-                {suggestions.map((text) => (
-                  <button
-                    key={text}
-                    type="button"
-                    onClick={() => sendMessage(text)}
-                    style={styles.suggestionChip}
-                  >
-                    {text}
-                  </button>
-                ))}
-              </div>
-            )
-          })()}
-          {dailyRemaining !== null && dailyRemaining <= 10 && (
-            <div style={styles.dailyLimit}>
-              {dailyRemaining === 0
-                ? 'Daily message limit reached. Resets in 24 hours.'
-                : `${dailyRemaining} message${dailyRemaining === 1 ? '' : 's'} remaining today`}
-            </div>
-          )}
-          <form onSubmit={handleSend} style={styles.chatForm} className="editor-chat-form">
-            <div style={styles.chatInputWrap}>
-              <textarea
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value)
-                  // Auto-resize
-                  e.target.style.height = 'auto'
-                  e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    if (input.trim() && !isPending) {
-                      handleSend(e)
-                    }
-                  }
-                }}
-                placeholder={dailyRemaining === 0 ? 'Daily limit reached' : 'Tell folii what to change…'}
-                style={styles.chatInput}
-                disabled={isPending || dailyRemaining === 0}
-                rows={1}
-              />
-              <button
-                type="submit"
-                style={{
-                  ...styles.sendBtn,
-                  ...(isPending || !input.trim() || dailyRemaining === 0 ? styles.btnBusy : {}),
-                }}
-                disabled={isPending || !input.trim() || dailyRemaining === 0}
-                aria-label="Send"
-              >
-                {isPending ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <ArrowUp size={16} />
-                )}
-              </button>
-            </div>
-          </form>
-        </aside>
+        <ChatPane
+          messages={messages}
+          content={content}
+          isPlaceholder={isPlaceholder}
+          isPending={isPending}
+          onSend={sendMessage}
+          onRetry={(msgId, text) => sendMessage(text, msgId)}
+          onRevert={handleRevert}
+          reverting={reverting}
+          uploadError={uploadError}
+          chatError={chatError}
+          dailyRemaining={dailyRemaining}
+          isFocusLayout={layout === 'focus'}
+        />
       </div>
     </main>
   )
