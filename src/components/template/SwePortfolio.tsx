@@ -36,7 +36,7 @@ export function SwePortfolio({
   uploadingAvatar?: boolean
 }) {
   return (
-    <div className="flex min-h-full w-full flex-1 items-start justify-center px-3 py-4 sm:items-center sm:p-6 md:p-10">
+    <div className="flex min-h-full w-full flex-1 items-center justify-center px-3 py-4 sm:p-6 md:p-10">
       {section === 'profile' && (
         <Profile
           content={content}
