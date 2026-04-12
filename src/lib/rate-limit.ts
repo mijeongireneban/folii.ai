@@ -70,9 +70,10 @@ export async function checkRateLimit(
 export function rateLimitResponse(result: RateLimitResult): Response | null {
   if (result.ok) return null
   const isDaily = result.bucket.windowSeconds >= 86400
+  const remaining = result.remaining ?? 0
   const message = isDaily
     ? `You've reached your daily limit of ${result.bucket.max} messages. Resets in 24 hours.`
-    : `Too many requests. Try again in ${result.bucket.windowSeconds}s.`
+    : `Rate limited. ${remaining} of ${result.bucket.max} requests remaining. Try again shortly.`
   return new Response(
     JSON.stringify({
       error: 'rate_limited',
