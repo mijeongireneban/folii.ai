@@ -14,9 +14,28 @@ export async function generateMetadata({
   const { username } = await params
   const data = await loadPublishedSite(username)
   if (!data) return { title: 'Not found' }
+
+  const title = `${data.content.name} — folii.ai`
+  const description = data.content.tagline
+  const ogImage = `/${username}/og`
+
   return {
-    title: `${data.content.name} — folii.ai`,
-    description: data.content.tagline,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://folii.ai/${username}`,
+      siteName: 'folii.ai',
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${data.content.name}'s portfolio` }],
+      type: 'profile',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImage],
+    },
   }
 }
 
