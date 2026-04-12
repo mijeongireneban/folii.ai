@@ -82,6 +82,9 @@ export default async function RootPage() {
           <Link href="/docs" style={styles.navLink}>
             Docs
           </Link>
+          <Link href="/changelog" style={styles.navLink}>
+            Changelog
+          </Link>
           {user ? (
             <Link href="/editor" style={styles.navCta}>
               Open editor
@@ -182,6 +185,9 @@ export default async function RootPage() {
         <div style={styles.footerLinks}>
           <Link href="/docs" style={styles.footerLink}>
             Docs
+          </Link>
+          <Link href="/changelog" style={styles.footerLink}>
+            Changelog
           </Link>
           {user ? (
             <Link href="/editor" style={styles.footerLink}>
