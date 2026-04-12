@@ -55,23 +55,6 @@ export const styles = {
     letterSpacing: '-0.5px',
   } as const,
   topbarRight: { display: 'flex', alignItems: 'center', gap: 12 } as const,
-  segmented: {
-    display: 'flex',
-    background: 'rgba(255,255,255,0.06)',
-    borderRadius: 100,
-    padding: 3,
-  } as const,
-  segBtn: {
-    background: 'transparent',
-    color: '#a6a6a6',
-    border: 'none',
-    padding: '6px 14px',
-    borderRadius: 100,
-    fontSize: 13,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  } as const,
-  segBtnActive: { background: '#fff', color: '#000' } as const,
   publishBtn: {
     background: '#0099ff',
     color: '#fff',
@@ -101,7 +84,6 @@ export const styles = {
     gridTemplateColumns: '1fr 400px',
     minHeight: 0,
   } as const,
-  workspaceFocus: { gridTemplateColumns: '1fr' } as const,
 
   previewPane: {
     position: 'relative',
@@ -131,7 +113,6 @@ export const styles = {
     fontSize: 12,
     color: '#8a8a8a',
   } as const,
-  previewPaneFocus: { borderRight: 'none' } as const,
   previewFrame: {
     flex: 1,
     padding: 24,
@@ -170,18 +151,6 @@ export const styles = {
     flexDirection: 'column',
     minHeight: 0,
     background: '#000',
-  } as const,
-  chatPaneFocus: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 320,
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-    background: 'rgba(10,10,10,0.92)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    zIndex: 10,
   } as const,
   chatScroll: {
     flex: 1,
@@ -460,11 +429,11 @@ export const EDITOR_MEDIA_CSS = `
     font-size: 11px !important;
     padding: 5px 8px !important;
   }
-  .editor-layout-toggle,
   .editor-btn-upload,
   .editor-btn-json,
   .editor-btn-reset,
   .editor-btn-theme,
+  .editor-btn-github,
   .editor-live-link {
     display: none !important;
   }
