@@ -283,6 +283,14 @@ export function coerceContent(input: unknown): unknown {
     out.headline_points = coerceStringArray(out.headline_points)
   }
 
+  // Normalize hidden_sections to valid keys only.
+  if ('hidden_sections' in out) {
+    const valid = new Set(['experience', 'skills', 'projects', 'contact'])
+    out.hidden_sections = coerceStringArray(out.hidden_sections)
+      .map((s) => (s as string).toLowerCase().trim())
+      .filter((s) => valid.has(s))
+  }
+
   // Drop well-known top-level decorative fields if the model smuggled them in.
   delete out.icon
   delete out.banner_image

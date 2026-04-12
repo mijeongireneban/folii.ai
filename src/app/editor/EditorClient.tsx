@@ -453,7 +453,9 @@ export function EditorClient({
                           { key: 'projects', icon: FolderKanban, label: 'Projects', href: '/projects' },
                           { key: 'contact', icon: Mail, label: 'Contact', href: '/contact' },
                         ] as { key: PortfolioSection; icon: MenuBarItem['icon']; label: string; href: string }[]
-                      ).map((s) => ({
+                      )
+                        .filter((s) => s.key === 'profile' || !content.hidden_sections?.includes(s.key as 'experience' | 'skills' | 'projects' | 'contact'))
+                        .map((s) => ({
                         icon: s.icon,
                         label: s.label,
                         href: s.href,
