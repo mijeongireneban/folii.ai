@@ -16,6 +16,7 @@ import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
+import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -476,10 +477,7 @@ export function EditorClient({
                 url={`folii.ai/${username}${SECTION_PATH[section]}`}
                 fullBleed={layout === 'focus'}
               >
-                <div
-                  className={`${themeColorSchemeClass(content.theme?.preset)} relative flex min-h-full flex-col bg-background text-foreground`}
-                  style={themeStyleVars(content.theme?.preset)}
-                >
+                <TemplateThemeProvider presetId={content.theme?.preset} className="relative flex min-h-full flex-col" fixedToggle={false}>
                   <SwePortfolio
                     content={content}
                     section={section}
@@ -510,7 +508,7 @@ export function EditorClient({
                       }))}
                     />
                   </div>
-                </div>
+                </TemplateThemeProvider>
               </BrowserFrame>
             </div>
           ) : (
@@ -840,6 +838,34 @@ function TopBar({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [themeOpen])
+
+  // Arrow key navigation for theme dropdown — live preview on move
+  useEffect(() => {
+    if (!themeOpen || !onThemeChange) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Escape' && e.key !== 'Enter') return
+      e.preventDefault()
+      if (e.key === 'Escape') {
+        setThemeOpen(false)
+        return
+      }
+      if (e.key === 'Enter') {
+        setThemeOpen(false)
+        return
+      }
+      const currentIdx = THEME_PRESETS.findIndex((t) => t.id === (themeId ?? DEFAULT_THEME_ID))
+      const next = e.key === 'ArrowDown'
+        ? (currentIdx + 1) % THEME_PRESETS.length
+        : (currentIdx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length
+      onThemeChange!(THEME_PRESETS[next].id)
+      // Scroll the active item into view
+      const container = themeRef.current?.querySelector('[data-theme-list]')
+      const activeBtn = container?.querySelector(`[data-theme-id="${THEME_PRESETS[next].id}"]`)
+      activeBtn?.scrollIntoView({ block: 'nearest' })
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [themeOpen, themeId, onThemeChange])
   return (
     <header style={styles.topbar} className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
@@ -931,20 +957,22 @@ function TopBar({
                   border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 12,
                   padding: 8,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 4,
-                  width: 320,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  width: 200,
                   maxHeight: 400,
                   overflowY: 'auto',
                   zIndex: 50,
                 }}
+                data-theme-list
               >
                 {THEME_PRESETS.map((t) => {
                   const active = (themeId ?? DEFAULT_THEME_ID) === t.id
                   return (
                     <button
                       key={t.id}
+                      data-theme-id={t.id}
                       onClick={() => {
                         onThemeChange(t.id)
                         setThemeOpen(false)
