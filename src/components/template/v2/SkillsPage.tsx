@@ -53,21 +53,21 @@ export function SkillsPage({ content }: { content: Content }) {
 
   return (
     <div className="w-full max-w-5xl">
-      <div className="bg-card rounded-xl border p-6">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="bg-card rounded-xl border p-3 sm:p-6">
+        <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map((cat) => {
             const Icon = iconFor(cat.icon)
             return (
-              <div key={cat.category} className="space-y-3 rounded-lg border p-4">
-                <h4 className="flex items-center gap-2 text-sm font-medium">
-                  <Icon className="h-5 w-5" />
+              <div key={cat.category} className="space-y-2 rounded-lg border p-3 sm:space-y-3 sm:p-4">
+                <h4 className="flex items-center gap-2 text-xs font-medium sm:text-sm">
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   {cat.category}
                 </h4>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {cat.items.map((item) => (
                     <div
                       key={item}
-                      className="bg-muted/40 hover:border-muted rounded-md border border-transparent px-3 py-1.5 text-sm transition-colors"
+                      className="bg-muted/40 hover:border-muted rounded-md border border-transparent px-2 py-1 text-xs transition-colors sm:px-3 sm:py-1.5 sm:text-sm"
                     >
                       {item}
                     </div>
