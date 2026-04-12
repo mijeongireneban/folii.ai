@@ -149,7 +149,10 @@ export function EditorClient({
           errorMsg = (json.message as string) ?? 'Too many requests. Please try again later.'
           if (json.daily) setDailyRemaining(0)
         } else if (res.status === 502 || res.status === 503) {
-          errorMsg = 'AI service is temporarily unavailable. Try again in a moment.'
+          const reason = json.reason as string | undefined
+          errorMsg = reason === 'invalid_output'
+            ? 'AI returned an unexpected format. Try rephrasing your request.'
+            : 'AI service is temporarily unavailable. Try again in a moment.'
         } else {
           errorMsg = (json.error as string) ?? 'Something went wrong. Try again.'
         }

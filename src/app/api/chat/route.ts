@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
   // 7. Run the edit
   const result = await chatEdit(current, enrichedMessage)
   if (!result.ok) {
+    console.error('[chat] edit failed:', result.reason, result.detail)
     // Save an assistant error message so the user sees what happened.
     await admin.from('chat_messages').insert({
       site_id: site.id,
