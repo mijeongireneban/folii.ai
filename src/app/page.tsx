@@ -79,6 +79,9 @@ export default async function RootPage() {
       <nav style={styles.nav} className="landing-nav">
         <div style={styles.brand}>folii.ai</div>
         <div style={styles.navRight}>
+          <Link href="/docs" style={styles.navLink}>
+            Docs
+          </Link>
           {user ? (
             <Link href="/editor" style={styles.navCta}>
               Open editor
@@ -177,6 +180,9 @@ export default async function RootPage() {
       <footer style={styles.footer} className="landing-footer">
         <div style={styles.footerBrand}>folii.ai</div>
         <div style={styles.footerLinks}>
+          <Link href="/docs" style={styles.footerLink}>
+            Docs
+          </Link>
           {user ? (
             <Link href="/editor" style={styles.footerLink}>
               Editor
