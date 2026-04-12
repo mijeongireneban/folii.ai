@@ -380,7 +380,8 @@ export function EditorClient({
           }
           .editor-preview-pane {
             border-right: none !important;
-            padding-bottom: 320px !important;
+            max-height: calc(100vh - 50px - 320px) !important;
+            overflow: auto !important;
           }
           .editor-chat-pane {
             position: fixed !important;
@@ -440,7 +441,7 @@ export function EditorClient({
             height: 260px !important;
           }
           .editor-preview-pane {
-            padding-bottom: 260px !important;
+            max-height: calc(100vh - 50px - 260px) !important;
           }
         }
       `}</style>
