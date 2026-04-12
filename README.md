@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# folii
 
-## Getting Started
+**A personal site in 5 minutes. In your voice.**
 
-First, run the development server:
+[Try folii →](https://folii-ai.vercel.app)
+
+<!-- TODO: replace with public/readme-hero.gif once recorded. See docs/launch/og-image-spec.md -->
+![folii demo: upload a resume, refine through chat, publish a personal site](public/readme-hero.gif)
+
+## Why folii
+
+Most engineers don't have a personal site. Not because they can't. Because cloning a Vercel template takes a weekend, and after all that, the copy still reads like a LinkedIn bio. "Passionate full-stack engineer building scalable solutions." Nobody talks like that.
+
+folii's wedge is content, not design. You get exactly one beautiful template per persona. You never touch the layout. The chat only modifies content, so the product can obsess over one thing: getting the AI to write in your voice instead of corporate-speak.
+
+v1 ships for software engineers with 3 to 7 years of experience. Mid-career, GitHub presence, a few real projects. Other personas (designers, PMs, academics) arrive later as new templates, not as settings knobs.
+
+What you actually do: upload your resume as a PDF or paste it as text, review the draft, refine through chat ("make the bio shorter", "drop the grad school project"), and publish to a public URL. About 5 minutes from file to live link.
+
+## How it works
+
+1. **Upload your resume.** PDF or paste-as-text. The text is extracted server-side and shown back to you so you can fix any parsing weirdness before burning an LLM call.
+2. **Refine through chat.** Ask for shorter, sharper, or different. The chat returns a JSON Patch, which gets validated against the schema before it's applied. Bad responses never corrupt your content.
+3. **Publish.** One click. Your site goes live at `folii-ai.vercel.app/your-name` and is statically cached so the first click is instant.
+
+## What's in v1
+
+One template, built for the modal mid-career software engineer. Email and password auth. Resume upload via PDF or text paste. Chat-driven content edits with one-level undo. JSON view for power users who want to hand-fix. Public portfolio at `/[username]`. Rate-limited LLM calls per user. Design freedom is deliberately zero, that's the wedge.
+
+<details>
+<summary><strong>Stack</strong></summary>
+
+- Next.js 16 (app router, server components, server actions)
+- React 19, TypeScript strict mode
+- Tailwind + shadcn/ui (radix new-york style)
+- Supabase (Postgres, Auth, Storage) with row-level security
+- OpenAI SDK with structured outputs (`response_format: { type: "json_schema" }`)
+- Zod as the single source of truth for content shape
+- `pdfjs-dist` for layout-aware server-side PDF parsing
+- `fast-json-patch` (RFC 6902) for chat edits
+- Upstash Ratelimit, keyed by user
+- CodeMirror 6 for the JSON view
+- Deployed on Vercel
+
+Built with Claude Code + gstack. Full PRD, architecture, and implementation plan live under [`docs/`](./docs).
+
+</details>
+
+<details>
+<summary><strong>Local setup</strong></summary>
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local   # fill in Supabase + OpenAI keys
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Tests: `pnpm test` (vitest). Type check: `pnpm exec tsc --noEmit`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+</details>
 
-## Learn More
+## License
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT](./LICENSE). Built by [@mijeongireneban](https://github.com/mijeongireneban).
