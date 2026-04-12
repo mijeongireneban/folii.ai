@@ -25,7 +25,9 @@ import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 type Layout = 'split' | 'focus'
 type Mode = 'preview' | 'json'
-type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'>
+type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'> & {
+  error?: string
+}
 
 const LAYOUT_KEY = 'folii:editor:layout'
 
@@ -120,61 +122,97 @@ export function EditorClient({
     }
   }
 
-  async function handleSend(e: React.FormEvent) {
+  async function sendMessage(text: string, retryId?: string) {
+    if (!text || isPending) return
+    setChatError(null)
+
+    // If retrying, clear the error on the failed message. Otherwise append a new one.
+    if (retryId) {
+      setMessages((m) => m.map((msg) => msg.id === retryId ? { ...msg, error: undefined } : msg))
+    } else {
+      const optimisticId = `tmp-${Date.now()}`
+      setMessages((m) => [
+        ...m,
+        {
+          id: optimisticId,
+          role: 'user',
+          content: text,
+          created_at: new Date().toISOString(),
+          content_after: null,
+        },
+      ])
+    }
+
+    startTransition(async () => {
+      let res: Response
+      let json: Record<string, unknown>
+      try {
+        res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        })
+        json = await res.json()
+      } catch {
+        // Network error — mark the last user message as failed
+        setMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'Network error. Check your connection.' } : msg)
+        })
+        return
+      }
+
+      if (!res.ok) {
+        let errorMsg: string
+        if (res.status === 429) {
+          errorMsg = (json.message as string) ?? 'Too many requests. Please try again later.'
+          if (json.daily) setDailyRemaining(0)
+        } else if (res.status === 502 || res.status === 503) {
+          errorMsg = 'AI service is temporarily unavailable. Try again in a moment.'
+        } else {
+          errorMsg = (json.error as string) ?? 'Something went wrong. Try again.'
+        }
+        // Attach error to the last user message with this text
+        setMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: errorMsg } : msg)
+        })
+        return
+      }
+
+      if (typeof json.dailyRemaining === 'number') {
+        setDailyRemaining(json.dailyRemaining as number)
+      }
+      setContent(json.content as Content)
+      setIsPlaceholder(false)
+      const msg = json.message as { id: string; content: string; created_at: string }
+      setMessages((m) => [
+        ...m,
+        {
+          id: msg.id,
+          role: 'assistant',
+          content: msg.content,
+          created_at: msg.created_at,
+          content_after: json.content as Content,
+        },
+      ])
+    })
+  }
+
+  function handleSend(e: React.FormEvent) {
     e.preventDefault()
     const text = input.trim()
     if (!text || isPending) return
     setInput('')
-    // Reset textarea height after clearing
-    const textarea = e.currentTarget.querySelector('textarea')
+    const textarea = (e.currentTarget as HTMLElement).querySelector('textarea')
     if (textarea) textarea.style.height = 'auto'
-    setChatError(null)
+    sendMessage(text)
+  }
 
-    // Optimistically append user message
-    const optimisticId = `tmp-${Date.now()}`
-    setMessages((m) => [
-      ...m,
-      {
-        id: optimisticId,
-        role: 'user',
-        content: text,
-        created_at: new Date().toISOString(),
-        content_after: null,
-      },
-    ])
-
-    startTransition(async () => {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        if (res.status === 429) {
-          setChatError(json.message ?? 'Too many requests. Please try again later.')
-          if (json.daily) setDailyRemaining(0)
-        } else {
-          setChatError(json.error ?? 'chat_failed')
-        }
-        return
-      }
-      if (typeof json.dailyRemaining === 'number') {
-        setDailyRemaining(json.dailyRemaining)
-      }
-      setContent(json.content)
-      setIsPlaceholder(false)
-      setMessages((m) => [
-        ...m,
-        {
-          id: json.message.id,
-          role: 'assistant',
-          content: json.message.content,
-          created_at: json.message.created_at,
-          content_after: json.content,
-        },
-      ])
-    })
+  function handleRetry(msgId: string, text: string) {
+    sendMessage(text, msgId)
   }
 
   async function handleRevert(messageId: string) {
@@ -662,10 +700,25 @@ export function EditorClient({
                   style={{
                     ...styles.msg,
                     ...(isUser ? styles.msgUser : styles.msgAssistant),
+                    ...(m.error ? styles.msgError : {}),
                   }}
                 >
                   {!isUser && <div style={styles.msgLabel}>FOLII</div>}
                   <div>{m.content}</div>
+                  {m.error && (
+                    <div style={styles.msgErrorFooter}>
+                      <span style={styles.msgErrorText}>{m.error}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(m.id, m.content)}
+                        disabled={isPending}
+                        style={styles.retryBtn}
+                      >
+                        <RotateCcw size={11} />
+                        Retry
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -1441,6 +1494,32 @@ const styles = {
     color: '#fff',
     padding: '14px 18px',
     borderRadius: 14,
+  } as const,
+  msgError: {
+    borderColor: 'rgba(255,107,107,0.3)',
+  } as const,
+  msgErrorFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  } as const,
+  msgErrorText: {
+    fontSize: 12,
+    color: '#ff6b6b',
+  } as const,
+  retryBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    background: 'transparent',
+    border: '1px solid rgba(255,107,107,0.3)',
+    color: '#ff6b6b',
+    borderRadius: 100,
+    padding: '3px 10px',
+    fontSize: 11,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   } as const,
   thinking: {
     fontSize: 13,
