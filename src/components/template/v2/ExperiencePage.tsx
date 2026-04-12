@@ -27,19 +27,19 @@ export function ExperiencePage({ content }: { content: Content }) {
 
   return (
     <div className="w-full max-w-4xl">
-      <Accordion type="single" collapsible className="space-y-4">
+      <Accordion type="single" collapsible className="space-y-3 sm:space-y-4">
         {experiences.map((exp, index) => {
           const duration = exp.end ? `${exp.start} – ${exp.end}` : `${exp.start} – Present`
           return (
             <AccordionItem
               key={index}
               value={`item-${index}`}
-              className="bg-card rounded-lg border px-6 shadow-sm"
+              className="bg-card rounded-lg border px-3 shadow-sm sm:px-6"
             >
-              <AccordionTrigger className="items-start py-6 hover:no-underline">
-                <div className="flex flex-col items-start gap-2.5 text-left">
-                  <span className="text-xl font-bold tracking-tight">{exp.role}</span>
-                  <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <AccordionTrigger className="items-start py-4 hover:no-underline sm:py-6">
+                <div className="flex flex-col items-start gap-1.5 text-left sm:gap-2.5">
+                  <span className="text-base font-bold tracking-tight sm:text-xl">{exp.role}</span>
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:gap-x-4 sm:text-sm">
                     <span className="text-foreground/70 font-medium">{exp.company}</span>
                     {exp.location && (
                       <span className="flex items-center gap-1">
@@ -52,23 +52,23 @@ export function ExperiencePage({ content }: { content: Content }) {
                       {duration}
                     </span>
                   </div>
-                  <p className="text-foreground/70 pb-2 text-sm font-normal leading-relaxed">
+                  <p className="text-foreground/70 pb-1 text-xs font-normal leading-relaxed sm:pb-2 sm:text-sm">
                     {exp.impact}
                   </p>
                 </div>
               </AccordionTrigger>
 
-              <AccordionContent className="pb-8">
-                <div className="space-y-6">
+              <AccordionContent className="pb-4 sm:pb-8">
+                <div className="space-y-4 sm:space-y-6">
                   {exp.achievements.length > 0 && (
-                    <div className="border-border/50 border-t pt-6">
-                      <h4 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
+                    <div className="border-border/50 border-t pt-4 sm:pt-6">
+                      <h4 className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider sm:mb-3">
                         Key Achievements
                       </h4>
-                      <ul className="space-y-2.5">
+                      <ul className="space-y-2">
                         {exp.achievements.map((achievement, i) => (
-                          <li key={i} className="flex gap-3 text-sm leading-relaxed">
-                            <span className="text-primary mt-1 shrink-0 text-xs">▸</span>
+                          <li key={i} className="flex gap-2 text-xs leading-relaxed sm:gap-3 sm:text-sm">
+                            <span className="text-primary mt-0.5 shrink-0 text-xs">▸</span>
                             <span className="text-foreground/80">{achievement}</span>
                           </li>
                         ))}
@@ -77,13 +77,13 @@ export function ExperiencePage({ content }: { content: Content }) {
                   )}
 
                   {exp.technologies.length > 0 && (
-                    <div className="border-border/50 border-t pt-6">
-                      <h4 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
+                    <div className="border-border/50 border-t pt-4 sm:pt-6">
+                      <h4 className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider sm:mb-3">
                         Technologies
                       </h4>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1">
                         {exp.technologies.map((tech) => (
-                          <Badge key={tech} variant="secondary" className="text-xs">
+                          <Badge key={tech} variant="secondary" className="text-[10px] sm:text-xs">
                             {tech}
                           </Badge>
                         ))}

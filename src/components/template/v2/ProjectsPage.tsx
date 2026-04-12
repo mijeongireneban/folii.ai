@@ -67,9 +67,9 @@ export function ProjectsPage({
 
   return (
     <div className="w-full max-w-3xl">
-      <div className="bg-card rounded-xl border p-6">
+      <div className="bg-card rounded-xl border p-3 sm:p-6">
         {categories.length > 1 && (
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-1.5 sm:mb-6 sm:gap-2">
             {categories.map((category) => (
               <Button
                 key={category}

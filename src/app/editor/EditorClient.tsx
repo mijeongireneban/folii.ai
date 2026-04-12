@@ -373,6 +373,85 @@ export function EditorClient({
 
   return (
     <main style={styles.main} data-layout={layout}>
+      <style>{`
+        @media (max-width: 768px) {
+          .editor-workspace {
+            grid-template-columns: 1fr !important;
+          }
+          .editor-preview-pane {
+            border-right: none !important;
+            max-height: calc(100vh - 50px - 320px) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+          }
+          .editor-chat-pane {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 320px !important;
+            border-top: 1px solid rgba(255,255,255,0.06) !important;
+            background: rgba(10,10,10,0.96) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            z-index: 10 !important;
+          }
+          .editor-topbar {
+            padding: 10px 12px !important;
+          }
+          .editor-topbar-left {
+            gap: 8px !important;
+          }
+          .editor-topbar-right {
+            gap: 4px !important;
+          }
+          .editor-topbar-right button,
+          .editor-topbar-right a {
+            font-size: 11px !important;
+            padding: 5px 8px !important;
+          }
+          .editor-layout-toggle,
+          .editor-btn-upload,
+          .editor-btn-json,
+          .editor-btn-reset,
+          .editor-live-link {
+            display: none !important;
+          }
+          .editor-preview-frame {
+            padding: 0 !important;
+          }
+          .editor-preview-frame > * {
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            max-width: 100% !important;
+          }
+          .editor-chat-header {
+            padding: 8px 12px !important;
+          }
+          .editor-chat-header-label {
+            font-size: 10px !important;
+          }
+          .editor-chat-scroll {
+            padding: 10px 12px !important;
+            gap: 8px !important;
+          }
+          .editor-chat-form {
+            padding: 8px 10px !important;
+          }
+          .editor-suggestions {
+            padding: 6px 10px 0 !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .editor-chat-pane {
+            height: 260px !important;
+          }
+          .editor-preview-pane {
+            max-height: calc(100vh - 50px - 260px) !important;
+          }
+        }
+      `}</style>
       <input
         ref={fileInputRef}
         type="file"
@@ -403,6 +482,7 @@ export function EditorClient({
       />
 
       <div
+        className="editor-workspace"
         style={{
           ...styles.workspace,
           ...(layout === 'focus' ? styles.workspaceFocus : {}),
@@ -410,6 +490,7 @@ export function EditorClient({
       >
         {/* Preview */}
         <section
+          className="editor-preview-pane"
           style={{
             ...styles.previewPane,
             ...(layout === 'focus' ? styles.previewPaneFocus : {}),
@@ -426,6 +507,7 @@ export function EditorClient({
           )}
           {mode === 'preview' ? (
             <div
+              className="editor-preview-frame"
               style={{
                 ...styles.previewFrame,
                 ...(layout === 'focus' ? { padding: 12 } : {}),
@@ -515,6 +597,7 @@ export function EditorClient({
 
         {/* Chat */}
         <aside
+          className="editor-chat-pane"
           style={{
             ...styles.chatPane,
             ...(layout === 'focus' ? styles.chatPaneFocus : {}),
@@ -530,8 +613,8 @@ export function EditorClient({
                   !m.id.startsWith('tmp-'),
               )
             return (
-              <div style={styles.chatHeader}>
-                <span style={styles.chatHeaderLabel}>
+              <div style={styles.chatHeader} className="editor-chat-header">
+                <span style={styles.chatHeaderLabel} className="editor-chat-header-label">
                   CHAT · REFINE YOUR PORTFOLIO
                 </span>
                 <button
@@ -551,7 +634,7 @@ export function EditorClient({
               </div>
             )
           })()}
-          <div ref={chatScrollRef} style={styles.chatScroll}>
+          <div ref={chatScrollRef} style={styles.chatScroll} className="editor-chat-scroll">
             {messages.length === 0 && (
               <p style={styles.hint}>
                 {isPlaceholder
@@ -608,7 +691,7 @@ export function EditorClient({
             const suggestions = s.slice(0, 4)
             if (suggestions.length === 0 || isPending) return null
             return (
-              <div style={styles.suggestions}>
+              <div style={styles.suggestions} className="editor-suggestions">
                 {suggestions.map((text) => (
                   <button
                     key={text}
@@ -622,7 +705,7 @@ export function EditorClient({
               </div>
             )
           })()}
-          <form onSubmit={handleSend} style={styles.chatForm}>
+          <form onSubmit={handleSend} style={styles.chatForm} className="editor-chat-form">
             <div style={styles.chatInputWrap}>
               <textarea
                 value={input}
@@ -914,18 +997,19 @@ function TopBar({
   onUsernameChange?: (u: string) => void
 }) {
   return (
-    <header style={styles.topbar}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+    <header style={styles.topbar} className="editor-topbar">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
         <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
           folii.ai
         </a>
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>
-      <div style={styles.topbarRight}>
+      <div style={styles.topbarRight} className="editor-topbar-right">
         {onUploadClick && (
           <button
             onClick={onUploadClick}
             disabled={uploading}
+            className="editor-btn-upload"
             style={{
               ...styles.ghostBtn,
               ...(uploading ? styles.btnBusy : {}),
@@ -941,13 +1025,14 @@ function TopBar({
         {mode && onEnterJson && onExitJson && (
           <button
             onClick={mode === 'json' ? onExitJson : onEnterJson}
+            className="editor-btn-json"
             style={styles.ghostBtn}
           >
             {mode === 'json' ? 'Preview' : '{ } JSON'}
           </button>
         )}
         {layout && onLayoutChange && (
-          <div style={styles.segmented}>
+          <div style={styles.segmented} className="editor-layout-toggle">
             <button
               onClick={() => onLayoutChange('split')}
               style={{
@@ -975,6 +1060,7 @@ function TopBar({
                 href={`/${username}`}
                 target="_blank"
                 rel="noreferrer"
+                className="editor-live-link"
                 style={styles.liveLink}
               >
                 /{username} ↗
@@ -1005,6 +1091,7 @@ function TopBar({
           <button
             onClick={onReset}
             disabled={resetting}
+            className="editor-btn-reset"
             style={{
               ...styles.ghostBtn,
               ...(resetting ? styles.btnBusy : {}),
