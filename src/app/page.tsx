@@ -60,6 +60,13 @@ export default async function RootPage() {
           .landing-step-title {
             font-size: 18px !important;
           }
+          .landing-feature-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .landing-why-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
         }
         @media (max-width: 480px) {
           .landing-hero-title {
@@ -117,6 +124,10 @@ export default async function RootPage() {
           border-color: rgba(0, 0, 0, 0.1) !important;
           color: #333 !important;
         }
+        html[data-landing-theme="light"] .landing-feature-grid .landing-step {
+          box-shadow: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px !important;
+          background: #fff !important;
+        }
       `}</style>
 
       <nav style={styles.nav} className="landing-nav">
@@ -151,13 +162,15 @@ export default async function RootPage() {
 
       <section style={styles.hero} className="landing-hero">
         <h1 style={styles.heroTitle} className="landing-hero-title">
-          Your portfolio,
+          Ship your portfolio
           <br />
-          <span style={styles.heroAccent} className="landing-hero-accent">in a sentence.</span>
+          <span style={styles.heroAccent} className="landing-hero-accent">in minutes, not weeks.</span>
         </h1>
         <p style={styles.heroSub} className="landing-hero-sub">
-          Upload your resume. Edit in chat. Publish at folii.ai/you. No
-          drag-and-drop builders, no theme stores, no design homework.
+          folii turns your resume into a polished portfolio site. Upload a PDF,
+          refine with AI chat, pick a theme, and publish at folii.ai/you.
+          Built for engineers who&apos;d rather write code than fiddle with
+          website builders.
         </p>
         <div style={styles.heroCtas}>
           <Link href={user ? '/editor' : '/auth/signup'} style={styles.primaryCta}>
@@ -183,31 +196,111 @@ export default async function RootPage() {
             <div style={styles.stepNum}>01</div>
             <div style={styles.stepTitle} className="landing-step-title">Drop your resume</div>
             <p style={styles.stepBody} className="landing-step-body">
-              PDF, TXT, or Markdown. We extract your experience, projects, and
-              links into structured content. No copy-pasting.
+              Upload a PDF and our AI parser extracts your experience, projects,
+              skills, and links into structured content. No copy-pasting fields
+              one by one.
             </p>
           </li>
           <li style={styles.step} className="landing-step">
             <div style={styles.stepNum}>02</div>
-            <div style={styles.stepTitle} className="landing-step-title">Edit in chat</div>
+            <div style={styles.stepTitle} className="landing-step-title">Refine with AI</div>
             <p style={styles.stepBody} className="landing-step-body">
-              Say "tighten the bio" or "add a project about X". The preview
-              updates live. Undo any edit from the chat history.
+              Tell folii what to change in plain English. &quot;Tighten the bio&quot;,
+              &quot;add my latest project&quot;, &quot;quantify my impact at Acme&quot;. The preview
+              updates live. Revert any edit with one click.
             </p>
           </li>
           <li style={styles.step} className="landing-step">
             <div style={styles.stepNum}>03</div>
-            <div style={styles.stepTitle} className="landing-step-title">Publish</div>
+            <div style={styles.stepTitle} className="landing-step-title">Publish instantly</div>
             <p style={styles.stepBody} className="landing-step-body">
-              One click. Your portfolio is live at folii.ai/your-username.
-              Share the link. Update anytime.
+              One click and your portfolio is live at folii.ai/you. Share the
+              link on LinkedIn, in job apps, or anywhere. Come back and update
+              anytime.
             </p>
           </li>
         </ol>
       </section>
 
+      <section style={styles.features} className="landing-section" aria-labelledby="features-heading">
+        <h2 id="features-heading" style={styles.sectionHeading} className="landing-section-heading">
+          Everything you need,
+          <br />
+          nothing you don&apos;t.
+        </h2>
+        <div style={styles.featureGrid} className="landing-feature-grid">
+          <div style={styles.featureCard} className="landing-step">
+            <div style={styles.featureIcon}>✦</div>
+            <div style={styles.featureTitle}>AI-powered editing</div>
+            <p style={styles.featureBody} className="landing-step-body">
+              Chat with folii like a writing partner. It rewrites your bio,
+              quantifies achievements, and polishes copy while you watch the
+              preview update in real time.
+            </p>
+          </div>
+          <div style={styles.featureCard} className="landing-step">
+            <div style={styles.featureIcon}>⬡</div>
+            <div style={styles.featureTitle}>GitHub project import</div>
+            <p style={styles.featureBody} className="landing-step-body">
+              Paste a repo URL and folii pulls in the name, description, language,
+              stars, and topics. It writes a polished project entry for you
+              automatically.
+            </p>
+          </div>
+          <div style={styles.featureCard} className="landing-step">
+            <div style={styles.featureIcon}>◑</div>
+            <div style={styles.featureTitle}>40+ themes with dark/light</div>
+            <p style={styles.featureBody} className="landing-step-body">
+              Pick from dozens of color themes. Every theme supports both dark and
+              light mode. Your visitors can toggle between them.
+            </p>
+          </div>
+          <div style={styles.featureCard} className="landing-step">
+            <div style={styles.featureIcon}>↗</div>
+            <div style={styles.featureTitle}>Instant publishing</div>
+            <p style={styles.featureBody} className="landing-step-body">
+              No deploy steps, no hosting config, no DNS records. Hit publish
+              and your site is live. Update it anytime with another chat message.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.whySection} className="landing-section" aria-labelledby="why-heading">
+        <h2 id="why-heading" style={styles.sectionHeading} className="landing-section-heading">
+          Built for engineers.
+        </h2>
+        <div style={styles.whyGrid} className="landing-why-grid">
+          <div style={styles.whyItem}>
+            <div style={styles.whyLabel}>Not a website builder</div>
+            <p style={styles.whyBody} className="landing-step-body">
+              No drag-and-drop, no widgets, no layout puzzles. You talk to an AI
+              and it handles the design. Your content is always the focus.
+            </p>
+          </div>
+          <div style={styles.whyItem}>
+            <div style={styles.whyLabel}>Not a link-in-bio page</div>
+            <p style={styles.whyBody} className="landing-step-body">
+              folii is a full portfolio with structured experience, projects with
+              screenshots, grouped skills, and education. It tells your whole story.
+            </p>
+          </div>
+          <div style={styles.whyItem}>
+            <div style={styles.whyLabel}>Not another template store</div>
+            <p style={styles.whyBody} className="landing-step-body">
+              You don&apos;t browse themes for hours. Drop your resume, pick a color
+              palette, and the AI makes it look good. Five minutes, not five days.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section style={styles.example} className="landing-section">
-        <h2 style={styles.sectionHeading} className="landing-section-heading">Built with folii.ai</h2>
+        <h2 style={styles.sectionHeading} className="landing-section-heading">See it live</h2>
+        <p style={styles.exampleSub} className="landing-step-body">
+          Real portfolios built with folii. Every page you see was generated from
+          a resume and refined in chat.
+        </p>
         <a
           href={LIVE_EXAMPLE_URL}
           target="_blank"
@@ -221,7 +314,15 @@ export default async function RootPage() {
       </section>
 
       <section style={styles.finalCta} className="landing-final-cta">
-        <h2 style={styles.finalCtaTitle} className="landing-final-cta-title">Ship yours today.</h2>
+        <h2 style={styles.finalCtaTitle} className="landing-final-cta-title">
+          Your work speaks
+          <br />
+          for itself.
+        </h2>
+        <p style={styles.finalCtaSub} className="landing-hero-sub">
+          Stop putting off your portfolio. Upload your resume and let folii
+          handle the rest.
+        </p>
         <Link href={user ? '/editor' : '/auth/signup'} style={styles.primaryCta}>
           {user ? 'Open editor' : 'Start for free'}
         </Link>
@@ -386,6 +487,67 @@ const styles = {
     padding: '80px 32px',
     borderTop: '1px solid rgba(255,255,255,0.06)',
   } as const,
+  features: {
+    maxWidth: MAX,
+    margin: '0 auto',
+    padding: '80px 32px',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+  } as const,
+  featureGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 24,
+  } as const,
+  featureCard: {
+    background: '#000',
+    borderRadius: 12,
+    padding: 32,
+    boxShadow: 'rgba(0, 153, 255, 0.15) 0px 0px 0px 1px',
+  } as const,
+  featureIcon: {
+    fontSize: 20,
+    color: '#0099ff',
+    marginBottom: 16,
+  } as const,
+  featureTitle: {
+    fontFamily: "'Inter Variable', sans-serif",
+    fontSize: 18,
+    fontWeight: 600,
+    letterSpacing: '-0.5px',
+    marginBottom: 10,
+  } as const,
+  featureBody: { fontSize: 15, lineHeight: 1.6, color: '#a6a6a6' } as const,
+
+  whySection: {
+    maxWidth: MAX,
+    margin: '0 auto',
+    padding: '80px 32px',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+  } as const,
+  whyGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 32,
+  } as const,
+  whyItem: {} as const,
+  whyLabel: {
+    fontFamily: "'Inter Variable', sans-serif",
+    fontSize: 17,
+    fontWeight: 600,
+    letterSpacing: '-0.4px',
+    marginBottom: 10,
+    color: '#fff',
+  } as const,
+  whyBody: { fontSize: 15, lineHeight: 1.6, color: '#a6a6a6' } as const,
+
+  exampleSub: {
+    fontSize: 17,
+    lineHeight: 1.5,
+    color: '#a6a6a6',
+    marginBottom: 32,
+    maxWidth: 560,
+  } as const,
+
   exampleCard: {
     display: 'flex',
     alignItems: 'center',
@@ -412,6 +574,15 @@ const styles = {
     padding: '140px 32px',
     textAlign: 'center',
     borderTop: '1px solid rgba(255,255,255,0.06)',
+  } as const,
+  finalCtaSub: {
+    fontSize: 18,
+    lineHeight: 1.5,
+    color: '#a6a6a6',
+    marginBottom: 40,
+    maxWidth: 480,
+    marginLeft: 'auto',
+    marginRight: 'auto',
   } as const,
   finalCtaTitle: {
     fontFamily: "'Cabinet Grotesk', sans-serif",
