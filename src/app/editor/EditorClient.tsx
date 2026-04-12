@@ -373,6 +373,59 @@ export function EditorClient({
 
   return (
     <main style={styles.main} data-layout={layout}>
+      <style>{`
+        @media (max-width: 768px) {
+          .editor-workspace {
+            grid-template-columns: 1fr !important;
+          }
+          .editor-preview-pane {
+            border-right: none !important;
+            padding-bottom: 320px !important;
+          }
+          .editor-chat-pane {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 320px !important;
+            border-top: 1px solid rgba(255,255,255,0.06) !important;
+            background: rgba(10,10,10,0.96) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            z-index: 10 !important;
+          }
+          .editor-topbar {
+            padding: 10px 12px !important;
+          }
+          .editor-topbar-right {
+            gap: 6px !important;
+          }
+          .editor-topbar-right button,
+          .editor-topbar-right a {
+            font-size: 11px !important;
+            padding: 5px 10px !important;
+          }
+          .editor-layout-toggle {
+            display: none !important;
+          }
+          .editor-preview-frame {
+            padding: 8px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .editor-chat-pane {
+            height: 260px !important;
+          }
+          .editor-preview-pane {
+            padding-bottom: 260px !important;
+          }
+          .editor-topbar-right button,
+          .editor-topbar-right a {
+            font-size: 11px !important;
+            padding: 4px 8px !important;
+          }
+        }
+      `}</style>
       <input
         ref={fileInputRef}
         type="file"
@@ -403,6 +456,7 @@ export function EditorClient({
       />
 
       <div
+        className="editor-workspace"
         style={{
           ...styles.workspace,
           ...(layout === 'focus' ? styles.workspaceFocus : {}),
@@ -410,6 +464,7 @@ export function EditorClient({
       >
         {/* Preview */}
         <section
+          className="editor-preview-pane"
           style={{
             ...styles.previewPane,
             ...(layout === 'focus' ? styles.previewPaneFocus : {}),
@@ -426,6 +481,7 @@ export function EditorClient({
           )}
           {mode === 'preview' ? (
             <div
+              className="editor-preview-frame"
               style={{
                 ...styles.previewFrame,
                 ...(layout === 'focus' ? { padding: 12 } : {}),
@@ -515,6 +571,7 @@ export function EditorClient({
 
         {/* Chat */}
         <aside
+          className="editor-chat-pane"
           style={{
             ...styles.chatPane,
             ...(layout === 'focus' ? styles.chatPaneFocus : {}),
@@ -914,14 +971,14 @@ function TopBar({
   onUsernameChange?: (u: string) => void
 }) {
   return (
-    <header style={styles.topbar}>
+    <header style={styles.topbar} className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
           folii.ai
         </a>
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>
-      <div style={styles.topbarRight}>
+      <div style={styles.topbarRight} className="editor-topbar-right">
         {onUploadClick && (
           <button
             onClick={onUploadClick}
@@ -947,7 +1004,7 @@ function TopBar({
           </button>
         )}
         {layout && onLayoutChange && (
-          <div style={styles.segmented}>
+          <div style={styles.segmented} className="editor-layout-toggle">
             <button
               onClick={() => onLayoutChange('split')}
               style={{
