@@ -307,16 +307,6 @@ export function EditorClient({
       }
       setContent(json.content)
       setIsPlaceholder(false)
-      setMessages((m) => [
-        ...m,
-        {
-          id: json.message.id,
-          role: 'assistant',
-          content: json.message.content,
-          created_at: json.message.created_at,
-          content_after: json.content,
-        },
-      ])
       setMode('preview')
     } finally {
       setJsonSaving(false)
