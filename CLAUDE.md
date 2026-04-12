@@ -10,6 +10,16 @@ This project follows **git flow**. Always keep this in mind:
 
 When any skill (office-hours, plan-eng-review, ship, etc.) refers to "the base branch" or "cut from master", interpret it as `develop` for feature work. Only release and hotfix flows touch `master` directly.
 
+## Linear ticket workflow
+
+When working on a Linear ticket for this repo, always follow this routine:
+
+1. **Review** — read the ticket details and understand the scope.
+2. **Move to In Progress** — update the ticket status if it's not already there.
+3. **Create branch** — cut a `feature/<name>` or `bugfix/<name>` branch off `develop`.
+4. **Implement & create PR** — do the work, commit, and open a PR targeting `develop`.
+5. **Update ticket** — once the PR is created, update the Linear ticket status (e.g., In Review) and link the PR.
+
 ## Dev notes
 
 - Package manager: **pnpm** (never npm/yarn).
