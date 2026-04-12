@@ -20,9 +20,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
 
-  // 2. Rate limit
+  // 2. Rate limit (per-minute burst + daily cap)
   const rl = await checkRateLimit(BUCKETS.wizard, user.id)
   if (!rl.ok) return rateLimitResponse(rl)!
+  const dailyRl = await checkRateLimit(BUCKETS.wizardDaily, user.id)
+  if (!dailyRl.ok) return rateLimitResponse(dailyRl)!
 
   // 3. Multipart body
   let form: FormData

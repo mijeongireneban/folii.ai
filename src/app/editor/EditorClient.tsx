@@ -75,6 +75,7 @@ export function EditorClient({
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [chatError, setChatError] = useState<string | null>(null)
+  const [dailyRemaining, setDailyRemaining] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
@@ -150,8 +151,16 @@ export function EditorClient({
       })
       const json = await res.json()
       if (!res.ok) {
-        setChatError(json.error ?? 'chat_failed')
+        if (res.status === 429) {
+          setChatError(json.message ?? 'Too many requests. Please try again later.')
+          if (json.daily) setDailyRemaining(0)
+        } else {
+          setChatError(json.error ?? 'chat_failed')
+        }
         return
+      }
+      if (typeof json.dailyRemaining === 'number') {
+        setDailyRemaining(json.dailyRemaining)
       }
       setContent(json.content)
       setIsPlaceholder(false)
@@ -705,6 +714,13 @@ export function EditorClient({
               </div>
             )
           })()}
+          {dailyRemaining !== null && dailyRemaining <= 10 && (
+            <div style={styles.dailyLimit}>
+              {dailyRemaining === 0
+                ? 'Daily message limit reached. Resets in 24 hours.'
+                : `${dailyRemaining} message${dailyRemaining === 1 ? '' : 's'} remaining today`}
+            </div>
+          )}
           <form onSubmit={handleSend} style={styles.chatForm} className="editor-chat-form">
             <div style={styles.chatInputWrap}>
               <textarea
@@ -723,18 +739,18 @@ export function EditorClient({
                     }
                   }
                 }}
-                placeholder="Tell folii what to change…"
+                placeholder={dailyRemaining === 0 ? 'Daily limit reached' : 'Tell folii what to change…'}
                 style={styles.chatInput}
-                disabled={isPending}
+                disabled={isPending || dailyRemaining === 0}
                 rows={1}
               />
               <button
                 type="submit"
                 style={{
                   ...styles.sendBtn,
-                  ...(isPending || !input.trim() ? styles.btnBusy : {}),
+                  ...(isPending || !input.trim() || dailyRemaining === 0 ? styles.btnBusy : {}),
                 }}
-                disabled={isPending || !input.trim()}
+                disabled={isPending || !input.trim() || dailyRemaining === 0}
                 aria-label="Send"
               >
                 {isPending ? (
@@ -1515,6 +1531,14 @@ const styles = {
   dropzoneHint: { fontSize: 13, color: '#666' } as const,
 
   error: { fontSize: 13, color: '#ff6b6b' } as const,
+  dailyLimit: {
+    fontSize: 12,
+    color: '#f5a623',
+    textAlign: 'center',
+    padding: '6px 16px',
+    background: 'rgba(245,166,35,0.08)',
+    borderTop: '1px solid rgba(245,166,35,0.15)',
+  } as const,
 
   revertBtn: {
     marginTop: 8,
