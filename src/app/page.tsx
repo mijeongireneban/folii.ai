@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { SignOutButton, ThemeToggle } from './LandingActions'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export default async function RootPage() {
   } = await supabase.auth.getUser()
 
   return (
-    <main style={styles.main}>
+    <main style={styles.main} className="landing-main">
       <style>{`
         @media (max-width: 640px) {
           .landing-hero-title {
@@ -74,21 +75,66 @@ export default async function RootPage() {
             letter-spacing: -1.5px !important;
           }
         }
+        html[data-landing-theme="light"] .landing-main {
+          background: #fff !important;
+          color: #111 !important;
+        }
+        html[data-landing-theme="light"] .landing-nav-link {
+          color: #666 !important;
+        }
+        html[data-landing-theme="light"] .landing-brand {
+          color: #111 !important;
+        }
+        html[data-landing-theme="light"] .landing-hero-sub {
+          color: #666 !important;
+        }
+        html[data-landing-theme="light"] .landing-hero-accent {
+          color: #0077cc !important;
+        }
+        html[data-landing-theme="light"] .landing-step {
+          box-shadow: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px !important;
+          background: #fff !important;
+        }
+        html[data-landing-theme="light"] .landing-step-body {
+          color: #666 !important;
+        }
+        html[data-landing-theme="light"] .landing-example-card {
+          box-shadow: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px !important;
+          background: #fff !important;
+          color: #111 !important;
+        }
+        html[data-landing-theme="light"] .landing-section,
+        html[data-landing-theme="light"] .landing-final-cta,
+        html[data-landing-theme="light"] .landing-footer {
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        html[data-landing-theme="light"] .landing-footer-brand,
+        html[data-landing-theme="light"] .landing-footer-link {
+          color: #666 !important;
+        }
+        html[data-landing-theme="light"] .landing-theme-toggle {
+          background: rgba(0, 0, 0, 0.05) !important;
+          border-color: rgba(0, 0, 0, 0.1) !important;
+          color: #333 !important;
+        }
       `}</style>
 
       <nav style={styles.nav} className="landing-nav">
-        <div style={styles.brand}>folii.ai</div>
+        <div style={styles.brand} className="landing-brand">folii.ai</div>
         <div style={styles.navRight}>
-          <Link href="/docs" style={styles.navLink}>
+          <Link href="/docs" style={styles.navLink} className="landing-nav-link">
             Docs
           </Link>
           {user ? (
-            <Link href="/editor" style={styles.navCta}>
-              Open editor
-            </Link>
+            <>
+              <SignOutButton />
+              <Link href="/editor" style={styles.navCta}>
+                Open editor
+              </Link>
+            </>
           ) : (
             <>
-              <Link href="/auth/login" style={styles.navLink}>
+              <Link href="/auth/login" style={styles.navLink} className="landing-nav-link">
                 Log in
               </Link>
               <Link href="/auth/signup" style={styles.navCta}>
@@ -96,6 +142,7 @@ export default async function RootPage() {
               </Link>
             </>
           )}
+          <ThemeToggle />
         </div>
       </nav>
 
@@ -103,7 +150,7 @@ export default async function RootPage() {
         <h1 style={styles.heroTitle} className="landing-hero-title">
           Your portfolio,
           <br />
-          <span style={styles.heroAccent}>in a sentence.</span>
+          <span style={styles.heroAccent} className="landing-hero-accent">in a sentence.</span>
         </h1>
         <p style={styles.heroSub} className="landing-hero-sub">
           Upload your resume. Edit in chat. Publish at folii.ai/you. No
@@ -129,26 +176,26 @@ export default async function RootPage() {
           How it works
         </h2>
         <ol style={styles.stepsList}>
-          <li style={styles.step}>
+          <li style={styles.step} className="landing-step">
             <div style={styles.stepNum}>01</div>
             <div style={styles.stepTitle} className="landing-step-title">Drop your resume</div>
-            <p style={styles.stepBody}>
+            <p style={styles.stepBody} className="landing-step-body">
               PDF, TXT, or Markdown. We extract your experience, projects, and
               links into structured content. No copy-pasting.
             </p>
           </li>
-          <li style={styles.step}>
+          <li style={styles.step} className="landing-step">
             <div style={styles.stepNum}>02</div>
             <div style={styles.stepTitle} className="landing-step-title">Edit in chat</div>
-            <p style={styles.stepBody}>
+            <p style={styles.stepBody} className="landing-step-body">
               Say "tighten the bio" or "add a project about X". The preview
               updates live. Undo any edit from the chat history.
             </p>
           </li>
-          <li style={styles.step}>
+          <li style={styles.step} className="landing-step">
             <div style={styles.stepNum}>03</div>
             <div style={styles.stepTitle} className="landing-step-title">Publish</div>
-            <p style={styles.stepBody}>
+            <p style={styles.stepBody} className="landing-step-body">
               One click. Your portfolio is live at folii.ai/your-username.
               Share the link. Update anytime.
             </p>
@@ -178,9 +225,9 @@ export default async function RootPage() {
       </section>
 
       <footer style={styles.footer} className="landing-footer">
-        <div style={styles.footerBrand}>folii.ai</div>
+        <div style={styles.footerBrand} className="landing-footer-brand">folii.ai</div>
         <div style={styles.footerLinks}>
-          <Link href="/docs" style={styles.footerLink}>
+          <Link href="/docs" style={styles.footerLink} className="landing-footer-link">
             Docs
           </Link>
           {user ? (
