@@ -418,6 +418,22 @@ export function EditorClient({
           .editor-preview-frame {
             padding: 8px !important;
           }
+          .editor-chat-header {
+            padding: 8px 12px !important;
+          }
+          .editor-chat-header-label {
+            font-size: 10px !important;
+          }
+          .editor-chat-scroll {
+            padding: 10px 12px !important;
+            gap: 8px !important;
+          }
+          .editor-chat-form {
+            padding: 8px 10px !important;
+          }
+          .editor-suggestions {
+            padding: 6px 10px 0 !important;
+          }
         }
         @media (max-width: 480px) {
           .editor-chat-pane {
@@ -589,8 +605,8 @@ export function EditorClient({
                   !m.id.startsWith('tmp-'),
               )
             return (
-              <div style={styles.chatHeader}>
-                <span style={styles.chatHeaderLabel}>
+              <div style={styles.chatHeader} className="editor-chat-header">
+                <span style={styles.chatHeaderLabel} className="editor-chat-header-label">
                   CHAT · REFINE YOUR PORTFOLIO
                 </span>
                 <button
@@ -610,7 +626,7 @@ export function EditorClient({
               </div>
             )
           })()}
-          <div ref={chatScrollRef} style={styles.chatScroll}>
+          <div ref={chatScrollRef} style={styles.chatScroll} className="editor-chat-scroll">
             {messages.length === 0 && (
               <p style={styles.hint}>
                 {isPlaceholder
@@ -667,7 +683,7 @@ export function EditorClient({
             const suggestions = s.slice(0, 4)
             if (suggestions.length === 0 || isPending) return null
             return (
-              <div style={styles.suggestions}>
+              <div style={styles.suggestions} className="editor-suggestions">
                 {suggestions.map((text) => (
                   <button
                     key={text}
@@ -681,7 +697,7 @@ export function EditorClient({
               </div>
             )
           })()}
-          <form onSubmit={handleSend} style={styles.chatForm}>
+          <form onSubmit={handleSend} style={styles.chatForm} className="editor-chat-form">
             <div style={styles.chatInputWrap}>
               <textarea
                 value={input}
