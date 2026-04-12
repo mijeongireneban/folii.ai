@@ -34,6 +34,8 @@ export async function chatEdit(
         },
       ],
       response_format: { type: 'json_object' },
+    }, {
+      timeout: 45_000, // 45s to leave buffer within 60s function limit
     })
     raw = res.choices[0]?.message?.content ?? ''
   } catch (err) {

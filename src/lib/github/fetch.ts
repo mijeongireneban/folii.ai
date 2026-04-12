@@ -37,33 +37,39 @@ export async function fetchRepoMeta(
   owner: string,
   repo: string,
 ): Promise<{ ok: true; data: RepoMeta } | { ok: false; status: number }> {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'folii-ai',
-    },
-    next: { revalidate: 3600 }, // cache for 1 hour
-  })
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'folii-ai',
+      },
+      next: { revalidate: 3600 }, // cache for 1 hour
+      signal: AbortSignal.timeout(5_000), // 5s timeout
+    })
 
-  if (!res.ok) {
-    return { ok: false, status: res.status }
-  }
+    if (!res.ok) {
+      return { ok: false, status: res.status }
+    }
 
-  const json = await res.json()
-  return {
-    ok: true,
-    data: {
-      owner: json.owner?.login ?? owner,
-      name: json.name ?? repo,
-      fullName: json.full_name ?? `${owner}/${repo}`,
-      description: json.description ?? null,
-      language: json.language ?? null,
-      topics: json.topics ?? [],
-      stars: json.stargazers_count ?? 0,
-      forks: json.forks_count ?? 0,
-      homepage: json.homepage || null,
-      htmlUrl: json.html_url ?? `https://github.com/${owner}/${repo}`,
-    },
+    const json = await res.json()
+    return {
+      ok: true,
+      data: {
+        owner: json.owner?.login ?? owner,
+        name: json.name ?? repo,
+        fullName: json.full_name ?? `${owner}/${repo}`,
+        description: json.description ?? null,
+        language: json.language ?? null,
+        topics: json.topics ?? [],
+        stars: json.stargazers_count ?? 0,
+        forks: json.forks_count ?? 0,
+        homepage: json.homepage || null,
+        htmlUrl: json.html_url ?? `https://github.com/${owner}/${repo}`,
+      },
+    }
+  } catch {
+    // Timeout or network error — fail gracefully
+    return { ok: false, status: 0 }
   }
 }
 
