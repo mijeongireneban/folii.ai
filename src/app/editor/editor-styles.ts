@@ -465,6 +465,7 @@ export const EDITOR_MEDIA_CSS = `
   .editor-btn-json,
   .editor-btn-reset,
   .editor-btn-theme,
+  .editor-btn-github,
   .editor-live-link {
     display: none !important;
   }

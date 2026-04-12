@@ -439,6 +439,7 @@ export function EditorClient({
         onUsernameChange={setUsername}
         themeId={content.theme?.preset}
         onThemeChange={handleThemeChange}
+        onSendChat={sendMessage}
       />
 
       <div
@@ -805,6 +806,7 @@ function TopBar({
   onUsernameChange,
   themeId,
   onThemeChange,
+  onSendChat,
 }: {
   username: string
   layout?: Layout
@@ -823,9 +825,13 @@ function TopBar({
   onUsernameChange?: (u: string) => void
   themeId?: string
   onThemeChange?: (id: string) => void
+  onSendChat?: (text: string) => void
 }) {
   const [themeOpen, setThemeOpen] = useState(false)
   const themeRef = useRef<HTMLDivElement>(null)
+  const [ghOpen, setGhOpen] = useState(false)
+  const [ghUrl, setGhUrl] = useState('')
+  const ghRef = useRef<HTMLDivElement>(null)
 
   // Close theme dropdown on outside click
   useEffect(() => {
@@ -838,6 +844,18 @@ function TopBar({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [themeOpen])
+
+  // Close GitHub popover on outside click
+  useEffect(() => {
+    if (!ghOpen) return
+    function handleClick(e: MouseEvent) {
+      if (ghRef.current && !ghRef.current.contains(e.target as Node)) {
+        setGhOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [ghOpen])
 
   // Arrow key navigation for theme dropdown — live preview on move
   useEffect(() => {
@@ -891,6 +909,86 @@ function TopBar({
             {uploading && <Loader2 size={14} className="animate-spin" />}
             {uploading ? 'Parsing…' : 'Upload resume'}
           </button>
+        )}
+        {onSendChat && (
+          <div ref={ghRef} style={{ position: 'relative' }} className="editor-btn-github">
+            <button
+              onClick={() => setGhOpen((v) => !v)}
+              style={{
+                ...styles.ghostBtn,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              Import
+            </button>
+            {ghOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: 6,
+                  background: '#111',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  padding: 16,
+                  width: 300,
+                  zIndex: 50,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
+                  Import from GitHub
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+                  Paste a public repo URL to add it as a project.
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!ghUrl.trim()) return
+                    onSendChat(`Add this GitHub project to my portfolio: ${ghUrl.trim()}`)
+                    setGhUrl('')
+                    setGhOpen(false)
+                  }}
+                  style={{ display: 'flex', gap: 8 }}
+                >
+                  <input
+                    type="url"
+                    value={ghUrl}
+                    onChange={(e) => setGhUrl(e.target.value)}
+                    placeholder="https://github.com/user/repo"
+                    style={{
+                      flex: 1,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      color: '#fff',
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={!ghUrl.trim()}
+                    style={{
+                      ...styles.primaryBtn,
+                      padding: '8px 14px',
+                      fontSize: 12,
+                      opacity: ghUrl.trim() ? 1 : 0.4,
+                    }}
+                  >
+                    Add
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         )}
         {mode && onEnterJson && onExitJson && (
           <button

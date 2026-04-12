@@ -1,11 +1,19 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import type { Content } from '@/lib/content/schema'
 import type { ChatMessage } from '@/lib/supabase/types'
 import { Loader2, RotateCcw, ArrowUp } from 'lucide-react'
 import { styles } from './editor-styles'
 import { getSuggestions } from './suggestions'
+
+const PLACEHOLDERS = [
+  'Tell folii what to change…',
+  'Paste a GitHub URL to import a project…',
+  '"Rewrite my bio to sound more senior"',
+  '"Add TypeScript to my skills"',
+  '"Tighten the tagline"',
+]
 
 export type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'> & {
   error?: string
@@ -40,6 +48,20 @@ export function ChatPane({
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
+  const [placeholderIdx, setPlaceholderIdx] = useState(0)
+
+  // Rotate placeholder text every 4 seconds
+  useEffect(() => {
+    if (dailyRemaining === 0) return
+    const timer = setInterval(() => {
+      setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [dailyRemaining])
+
+  const placeholder = dailyRemaining === 0
+    ? 'Daily limit reached'
+    : PLACEHOLDERS[placeholderIdx]
 
   // Autoscroll chat
   useEffect(() => {
@@ -188,7 +210,7 @@ export function ChatPane({
                 }
               }
             }}
-            placeholder={dailyRemaining === 0 ? 'Daily limit reached' : 'Tell folii what to change…'}
+            placeholder={placeholder}
             style={styles.chatInput}
             disabled={isPending || dailyRemaining === 0}
             rows={1}
