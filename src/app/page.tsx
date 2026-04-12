@@ -19,7 +19,66 @@ export default async function RootPage() {
 
   return (
     <main style={styles.main}>
-      <nav style={styles.nav}>
+      <style>{`
+        @media (max-width: 640px) {
+          .landing-hero-title {
+            font-size: 48px !important;
+            letter-spacing: -2px !important;
+          }
+          .landing-section-heading {
+            font-size: 32px !important;
+            letter-spacing: -1.5px !important;
+          }
+          .landing-final-cta-title {
+            font-size: 40px !important;
+            letter-spacing: -2px !important;
+          }
+          .landing-hero {
+            padding-top: 60px !important;
+            padding-bottom: 80px !important;
+          }
+          .landing-nav,
+          .landing-hero,
+          .landing-section,
+          .landing-final-cta,
+          .landing-footer {
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+          }
+          .landing-hero-sub {
+            font-size: 16px !important;
+          }
+          .landing-example-host {
+            font-size: 24px !important;
+          }
+          .landing-example-card {
+            padding: 24px !important;
+          }
+          .landing-final-cta {
+            padding-top: 80px !important;
+            padding-bottom: 80px !important;
+          }
+          .landing-step-title {
+            font-size: 18px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .landing-hero-title {
+            font-size: 36px !important;
+            letter-spacing: -1.5px !important;
+          }
+          .landing-section-heading {
+            font-size: 28px !important;
+            letter-spacing: -1.2px !important;
+          }
+          .landing-final-cta-title {
+            font-size: 32px !important;
+            letter-spacing: -1.5px !important;
+          }
+        }
+      `}</style>
+
+      <nav style={styles.nav} className="landing-nav">
         <div style={styles.brand}>folii.ai</div>
         <div style={styles.navRight}>
           <Link href="/auth/login" style={styles.navLink}>
@@ -31,13 +90,13 @@ export default async function RootPage() {
         </div>
       </nav>
 
-      <section style={styles.hero}>
-        <h1 style={styles.heroTitle}>
+      <section style={styles.hero} className="landing-hero">
+        <h1 style={styles.heroTitle} className="landing-hero-title">
           Your portfolio,
           <br />
           <span style={styles.heroAccent}>in a sentence.</span>
         </h1>
-        <p style={styles.heroSub}>
+        <p style={styles.heroSub} className="landing-hero-sub">
           Upload your resume. Edit in chat. Publish at folii.ai/you. No
           drag-and-drop builders, no theme stores, no design homework.
         </p>
@@ -56,14 +115,14 @@ export default async function RootPage() {
         </div>
       </section>
 
-      <section style={styles.steps} aria-labelledby="how-heading">
-        <h2 id="how-heading" style={styles.sectionHeading}>
+      <section style={styles.steps} className="landing-section" aria-labelledby="how-heading">
+        <h2 id="how-heading" style={styles.sectionHeading} className="landing-section-heading">
           How it works
         </h2>
         <ol style={styles.stepsList}>
           <li style={styles.step}>
             <div style={styles.stepNum}>01</div>
-            <div style={styles.stepTitle}>Drop your resume</div>
+            <div style={styles.stepTitle} className="landing-step-title">Drop your resume</div>
             <p style={styles.stepBody}>
               PDF, TXT, or Markdown. We extract your experience, projects, and
               links into structured content. No copy-pasting.
@@ -71,7 +130,7 @@ export default async function RootPage() {
           </li>
           <li style={styles.step}>
             <div style={styles.stepNum}>02</div>
-            <div style={styles.stepTitle}>Edit in chat</div>
+            <div style={styles.stepTitle} className="landing-step-title">Edit in chat</div>
             <p style={styles.stepBody}>
               Say "tighten the bio" or "add a project about X". The preview
               updates live. Undo any edit from the chat history.
@@ -79,7 +138,7 @@ export default async function RootPage() {
           </li>
           <li style={styles.step}>
             <div style={styles.stepNum}>03</div>
-            <div style={styles.stepTitle}>Publish</div>
+            <div style={styles.stepTitle} className="landing-step-title">Publish</div>
             <p style={styles.stepBody}>
               One click. Your portfolio is live at folii.ai/your-username.
               Share the link. Update anytime.
@@ -88,27 +147,28 @@ export default async function RootPage() {
         </ol>
       </section>
 
-      <section style={styles.example}>
-        <h2 style={styles.sectionHeading}>Built with folii.ai</h2>
+      <section style={styles.example} className="landing-section">
+        <h2 style={styles.sectionHeading} className="landing-section-heading">Built with folii.ai</h2>
         <a
           href={LIVE_EXAMPLE_URL}
           target="_blank"
           rel="noreferrer"
           style={styles.exampleCard}
+          className="landing-example-card"
         >
-          <div style={styles.exampleHost}>mijeong.dev</div>
+          <div style={styles.exampleHost} className="landing-example-host">mijeong.dev</div>
           <div style={styles.exampleArrow}>↗</div>
         </a>
       </section>
 
-      <section style={styles.finalCta}>
-        <h2 style={styles.finalCtaTitle}>Ship yours today.</h2>
+      <section style={styles.finalCta} className="landing-final-cta">
+        <h2 style={styles.finalCtaTitle} className="landing-final-cta-title">Ship yours today.</h2>
         <Link href="/auth/signup" style={styles.primaryCta}>
           Start for free
         </Link>
       </section>
 
-      <footer style={styles.footer}>
+      <footer style={styles.footer} className="landing-footer">
         <div style={styles.footerBrand}>folii.ai</div>
         <div style={styles.footerLinks}>
           <Link href="/auth/login" style={styles.footerLink}>
@@ -132,6 +192,7 @@ const styles = {
     background: '#000',
     color: '#fff',
     minHeight: '100vh',
+    overflowX: 'hidden',
   } as const,
 
   nav: {
