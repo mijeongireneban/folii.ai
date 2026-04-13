@@ -16,11 +16,35 @@ type ChangelogEntry = {
 
 const entries: ChangelogEntry[] = [
   {
+    version: '1.0.0',
+    date: 'April 12, 2026',
+    title: 'v1 launch',
+    features: [
+      'GitHub project import — paste a public repo URL in chat or use the Import button in the topbar. folii pulls the name, description, language, stars, and topics from the GitHub API and writes a polished project entry.',
+      'Improved landing page — new features section, "Why folii" differentiator, sharper hero copy, and stronger final CTA.',
+      'Documentation site at /docs — getting started guide, AI editing tips, themes guide, publishing walkthrough, and FAQ.',
+      'Changelog page at /changelog.',
+      'Sign out button and dark/light theme toggle on the landing page.',
+      'Sentry error tracking — production error monitoring with automatic Linear ticket creation.',
+    ],
+    improvements: [
+      'Rotating chat placeholder hints — cycles through example prompts every 4 seconds to help new users.',
+      'Better rate limit error messages — shows remaining count instead of misleading "try again in 60s".',
+      'API timeouts — 45s on OpenAI calls, 5s on GitHub fetch, preventing silent function hangs.',
+      'Error logging — LLM failures now log to console for Vercel log visibility.',
+      'Smarter error messages — distinguishes "AI returned bad format" from "AI unavailable".',
+    ],
+    fixes: [
+      'JSON editor saves no longer create "Applied direct JSON edit" chat messages.',
+      'Removed split/focus layout toggle — editor always uses split view for a cleaner experience.',
+    ],
+  },
+  {
     version: '0.0.1',
     date: 'April 12, 2026',
     title: 'Initial release',
     features: [
-      'Resume upload and AI parsing — drop a PDF, TXT, or Markdown file and get a structured portfolio in seconds.',
+      'Resume upload and AI parsing — drop a PDF and get a structured portfolio in seconds.',
       'AI chat editor — edit your portfolio in natural language. Rewrite your bio, add projects, remove sections, all through conversation.',
       'Live preview — see every change in real time as you edit.',
       'One-click publish — your portfolio goes live at folii.ai/username instantly.',
@@ -35,7 +59,6 @@ const entries: ChangelogEntry[] = [
       'Profile avatar — upload and crop a profile photo.',
       'SEO meta tags — Open Graph and Twitter card tags with a dynamically generated preview image.',
       'Mobile responsive — editor and published portfolios work on all screen sizes.',
-      'Documentation — getting started guide, editing tips, theme docs, publishing guide, and FAQ at /docs.',
     ],
     improvements: [
       'Rate limiting on AI chat and resume parsing to keep things fair.',
