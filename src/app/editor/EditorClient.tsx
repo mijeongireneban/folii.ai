@@ -14,6 +14,7 @@ import { json as jsonLang } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
+import { GitHubRepoModal } from './GitHubRepoModal'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
@@ -78,6 +79,32 @@ export function EditorClient({
   const [dailyRemaining, setDailyRemaining] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  // GitHub OAuth state
+  const [ghConnected, setGhConnected] = useState(false)
+  const [ghUsername, setGhUsername] = useState<string | null>(null)
+  const [ghModalOpen, setGhModalOpen] = useState(false)
+  const [ghImporting, setGhImporting] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/github/status')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.connected) {
+          setGhConnected(true)
+          setGhUsername(d.username ?? null)
+        }
+      })
+      .catch(() => {})
+
+    // Check for ?github=connected callback — open repo browser automatically
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('github') === 'connected') {
+      setGhConnected(true)
+      setGhModalOpen(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   async function handleUpload(file: File) {
     setUploading(true)
     setUploadError(null)
@@ -99,6 +126,65 @@ export function EditorClient({
       setUploadError(err instanceof Error ? err.message : 'upload_failed')
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function handleGitHubProfileImport() {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const res = await fetch('/api/github/import-profile', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) {
+        setUploadError(json.error === 'github_token_expired'
+          ? 'GitHub connection expired. Please reconnect.'
+          : json.error ?? 'import_failed')
+        if (json.error === 'github_token_expired') {
+          setGhConnected(false)
+          setGhUsername(null)
+        }
+        return
+      }
+      setContent(json.content)
+      setIsPlaceholder(false)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'import_failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
+    setGhImporting(true)
+    try {
+      const res = await fetch('/api/github/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ repos }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setChatError(json.error ?? 'import_failed')
+        return
+      }
+      setContent(json.content)
+      setIsPlaceholder(false)
+      setGhModalOpen(false)
+      // Add the assistant message to chat
+      setMessages((m) => [
+        ...m,
+        {
+          id: `gh-import-${Date.now()}`,
+          role: 'assistant',
+          content: `Imported ${repos.length} project${repos.length > 1 ? 's' : ''} from GitHub: ${repos.map((r) => r.name).join(', ')}`,
+          created_at: new Date().toISOString(),
+          content_after: json.content,
+        },
+      ])
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : 'import_failed')
+    } finally {
+      setGhImporting(false)
     }
   }
 
@@ -459,6 +545,22 @@ export function EditorClient({
         onThemeChange={handleThemeChange}
         onSendChat={sendMessage}
         onLinkedInUpload={() => linkedInFileRef.current?.click()}
+        ghConnected={ghConnected}
+        ghUsername={ghUsername}
+        onGhBrowse={() => setGhModalOpen(true)}
+        onGhProfileImport={handleGitHubProfileImport}
+        onGhDisconnect={async () => {
+          await fetch('/api/github/status', { method: 'DELETE' })
+          setGhConnected(false)
+          setGhUsername(null)
+        }}
+      />
+
+      <GitHubRepoModal
+        open={ghModalOpen}
+        onClose={() => setGhModalOpen(false)}
+        onImport={handleGitHubImport}
+        importing={ghImporting}
       />
 
       <div
@@ -815,6 +917,11 @@ function TopBar({
   onThemeChange,
   onSendChat,
   onLinkedInUpload,
+  ghConnected,
+  ghUsername,
+  onGhBrowse,
+  onGhProfileImport,
+  onGhDisconnect,
 }: {
   username: string
   mode?: Mode
@@ -833,11 +940,16 @@ function TopBar({
   onThemeChange?: (id: string) => void
   onSendChat?: (text: string) => void
   onLinkedInUpload?: () => void
+  ghConnected?: boolean
+  ghUsername?: string | null
+  onGhBrowse?: () => void
+  onGhProfileImport?: () => void
+  onGhDisconnect?: () => void
 }) {
   const [themeOpen, setThemeOpen] = useState(false)
   const themeRef = useRef<HTMLDivElement>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const [importView, setImportView] = useState<'menu' | 'github' | 'linkedin'>('menu')
+  const [importView, setImportView] = useState<'menu' | 'github' | 'linkedin' | 'resume'>('menu')
   const [ghUrl, setGhUrl] = useState('')
   const importRef = useRef<HTMLDivElement>(null)
   const linkedInFileRef = useRef<HTMLInputElement>(null)
@@ -894,6 +1006,23 @@ function TopBar({
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [themeOpen, themeId, onThemeChange])
+  const importMenuItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    padding: '10px 12px',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    color: '#fff',
+    fontSize: 13,
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    marginBottom: 8,
+    fontFamily: 'inherit',
+  }
+
   return (
     <header style={styles.topbar} className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
@@ -903,24 +1032,7 @@ function TopBar({
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>
       <div style={styles.topbarRight} className="editor-topbar-right">
-        {onUploadClick && (
-          <button
-            onClick={onUploadClick}
-            disabled={uploading}
-            className="editor-btn-upload"
-            style={{
-              ...styles.ghostBtn,
-              ...(uploading ? styles.btnBusy : {}),
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {uploading && <Loader2 size={14} className="animate-spin" />}
-            {uploading ? 'Parsing…' : 'Upload resume'}
-          </button>
-        )}
-        {(onSendChat || onLinkedInUpload) && (
+        {(onSendChat || onLinkedInUpload || onUploadClick) && (
           <div ref={importRef} style={{ position: 'relative' }} className="editor-btn-github">
             <button
               onClick={() => {
@@ -928,7 +1040,9 @@ function TopBar({
                 if (importOpen) setImportView('menu')
               }}
               style={{
-                ...styles.ghostBtn,
+                ...styles.primaryBtn,
+                padding: '8px 16px',
+                fontSize: 13,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -948,7 +1062,7 @@ function TopBar({
                   border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 12,
                   padding: 16,
-                  width: importView === 'linkedin' ? 340 : 300,
+                  width: importView === 'menu' ? 280 : 320,
                   zIndex: 100,
                 }}
               >
@@ -957,49 +1071,34 @@ function TopBar({
                     <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
                       Import from...
                     </div>
+                    {onUploadClick && (
+                      <button
+                        onClick={() => setImportView('resume')}
+                        style={importMenuItemStyle}
+                      >
+                        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div>
+                          <div style={{ fontWeight: 500 }}>Resume</div>
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Upload a PDF, TXT, or Markdown file</div>
+                        </div>
+                      </button>
+                    )}
                     {onSendChat && (
                       <button
                         onClick={() => setImportView('github')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 12px',
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 10,
-                          color: '#fff',
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          marginBottom: 8,
-                        }}
+                        style={importMenuItemStyle}
                       >
                         <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                         <div>
                           <div style={{ fontWeight: 500 }}>GitHub</div>
-                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Add a project from a repo URL</div>
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Browse repos or import your profile</div>
                         </div>
                       </button>
                     )}
                     {onLinkedInUpload && (
                       <button
                         onClick={() => setImportView('linkedin')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 12px',
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 10,
-                          color: '#fff',
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                        }}
+                        style={importMenuItemStyle}
                       >
                         <svg width={18} height={18} viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
                         <div>
@@ -1011,7 +1110,7 @@ function TopBar({
                   </>
                 )}
 
-                {importView === 'github' && onSendChat && (
+                {importView === 'github' && (
                   <>
                     <button
                       onClick={() => setImportView('menu')}
@@ -1030,51 +1129,153 @@ function TopBar({
                     <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
                       Import from GitHub
                     </div>
-                    <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-                      Paste a public repo URL to add it as a project.
-                    </div>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        if (!ghUrl.trim()) return
-                        onSendChat(`Add this GitHub project to my portfolio: ${ghUrl.trim()}`)
-                        setGhUrl('')
-                        setImportOpen(false)
-                        setImportView('menu')
-                      }}
-                      style={{ display: 'flex', gap: 8 }}
-                    >
-                      <input
-                        type="url"
-                        value={ghUrl}
-                        onChange={(e) => setGhUrl(e.target.value)}
-                        placeholder="https://github.com/user/repo"
-                        style={{
-                          flex: 1,
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.1)',
+
+                    {ghConnected ? (
+                      <>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 10px',
+                          background: 'rgba(0,153,255,0.08)',
                           borderRadius: 8,
-                          padding: '8px 12px',
-                          color: '#fff',
-                          fontSize: 13,
-                          fontFamily: 'inherit',
-                          outline: 'none',
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        type="submit"
-                        disabled={!ghUrl.trim()}
-                        style={{
-                          ...styles.primaryBtn,
-                          padding: '8px 14px',
+                          marginBottom: 12,
                           fontSize: 12,
-                          opacity: ghUrl.trim() ? 1 : 0.4,
-                        }}
-                      >
-                        Add
-                      </button>
-                    </form>
+                          color: '#aaa',
+                        }}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="#0099ff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                          <span>Connected as <strong style={{ color: '#fff' }}>{ghUsername}</strong></span>
+                          <button
+                            onClick={() => {
+                              onGhDisconnect?.()
+                              setImportOpen(false)
+                              setImportView('menu')
+                            }}
+                            style={{ marginLeft: 'auto', color: '#888', background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => {
+                            onGhBrowse?.()
+                            setImportOpen(false)
+                            setImportView('menu')
+                          }}
+                          style={{
+                            ...styles.primaryBtn,
+                            width: '100%',
+                            padding: '10px 14px',
+                            fontSize: 13,
+                            justifyContent: 'center',
+                            marginBottom: 8,
+                          }}
+                        >
+                          Browse your repos
+                        </button>
+                        <button
+                          onClick={() => {
+                            onGhProfileImport?.()
+                            setImportOpen(false)
+                            setImportView('menu')
+                          }}
+                          disabled={uploading}
+                          style={{
+                            ...styles.primaryBtn,
+                            width: '100%',
+                            padding: '10px 14px',
+                            fontSize: 13,
+                            marginBottom: 12,
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />
+                              Importing profile...
+                            </>
+                          ) : (
+                            'Import GitHub profile'
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <a
+                          href="/api/auth/github"
+                          style={{
+                            ...styles.primaryBtn,
+                            width: '100%',
+                            padding: '10px 14px',
+                            fontSize: 13,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            textDecoration: 'none',
+                            marginBottom: 12,
+                          }}
+                        >
+                          <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                          Connect GitHub
+                        </a>
+                        <div style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 12 }}>or paste a URL</div>
+                      </>
+                    )}
+
+                    {onSendChat && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
+                          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                          <span style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 1 }}>or</span>
+                          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+                        </div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                          Paste a public repo URL to add it as a project.
+                        </div>
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault()
+                            if (!ghUrl.trim()) return
+                            onSendChat(`Add this GitHub project to my portfolio: ${ghUrl.trim()}`)
+                            setGhUrl('')
+                            setImportOpen(false)
+                            setImportView('menu')
+                          }}
+                          style={{ display: 'flex', gap: 8 }}
+                        >
+                          <input
+                            type="url"
+                            value={ghUrl}
+                            onChange={(e) => setGhUrl(e.target.value)}
+                            placeholder="https://github.com/user/repo"
+                            style={{
+                              flex: 1,
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: 8,
+                              padding: '8px 12px',
+                              color: '#fff',
+                              fontSize: 13,
+                              fontFamily: 'inherit',
+                              outline: 'none',
+                            }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={!ghUrl.trim()}
+                            style={{
+                              ...styles.primaryBtn,
+                              padding: '8px 14px',
+                              fontSize: 12,
+                              opacity: ghUrl.trim() ? 1 : 0.4,
+                            }}
+                          >
+                            Add
+                          </button>
+                        </form>
+                      </>
+                    )}
                   </>
                 )}
 
@@ -1147,6 +1348,61 @@ function TopBar({
                     </button>
                     <div style={{ fontSize: 11, color: '#666', marginTop: 8, textAlign: 'center' }}>
                       This will replace your current portfolio content.
+                    </div>
+                  </>
+                )}
+
+                {importView === 'resume' && onUploadClick && (
+                  <>
+                    <button
+                      onClick={() => setImportView('menu')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#888',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        padding: 0,
+                        marginBottom: 8,
+                      }}
+                    >
+                      &larr; Back
+                    </button>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
+                      Import from Resume
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', marginBottom: 12, lineHeight: 1.5 }}>
+                      Upload your resume and we&apos;ll extract your experience, skills, and projects.
+                    </div>
+                    <button
+                      onClick={() => {
+                        onUploadClick()
+                        setImportOpen(false)
+                        setImportView('menu')
+                      }}
+                      disabled={uploading}
+                      style={{
+                        ...styles.primaryBtn,
+                        width: '100%',
+                        padding: '10px 14px',
+                        fontSize: 13,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          Parsing...
+                        </>
+                      ) : (
+                        'Upload Resume'
+                      )}
+                    </button>
+                    <div style={{ fontSize: 11, color: '#666', marginTop: 8, textAlign: 'center' }}>
+                      PDF, TXT, or Markdown up to 5 MB
                     </div>
                   </>
                 )}
@@ -1326,52 +1582,6 @@ function SignOutButton() {
       {pending && <Loader2 size={14} className="animate-spin" />}
       {pending ? 'Signing out…' : 'Sign out'}
     </button>
-  )
-}
-
-function Dropzone({
-  onFile,
-  uploading,
-}: {
-  onFile: (f: File) => void
-  uploading: boolean
-}) {
-  const [drag, setDrag] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDrag(true)
-      }}
-      onDragLeave={() => setDrag(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDrag(false)
-        const f = e.dataTransfer.files[0]
-        if (f) onFile(f)
-      }}
-      onClick={() => inputRef.current?.click()}
-      style={{
-        ...styles.dropzone,
-        ...(drag ? styles.dropzoneActive : {}),
-      }}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onFile(f)
-        }}
-      />
-      <div style={styles.dropzoneTitle}>
-        {uploading ? 'Parsing…' : 'Drop resume here'}
-      </div>
-      <div style={styles.dropzoneHint}>PDF, TXT, or MD · up to 5 MB</div>
-    </div>
   )
 }
 

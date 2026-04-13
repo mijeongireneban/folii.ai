@@ -16,16 +16,30 @@ type ChangelogEntry = {
 
 const entries: ChangelogEntry[] = [
   {
-    version: '1.1.0',
+    version: '1.2.0',
     date: 'April 12, 2026',
-    title: 'LinkedIn import & unified Import menu',
+    title: 'GitHub OAuth, profile import & unified Import menu',
     features: [
-      'LinkedIn profile import — export your LinkedIn profile as PDF and upload it to folii. AI parses your experience, education, skills, and bio into a polished portfolio. Step-by-step instructions included in the UI.',
-      'Unified Import menu — the Import button now opens a dropdown with GitHub and LinkedIn options, making it easy to add more import sources in the future.',
+      'GitHub OAuth integration — connect your GitHub account to browse and import repos directly. Select up to 5 repositories and folii creates polished project entries from each repo\'s metadata and README.',
+      'GitHub profile import — one click to fill your About Me and Skills. folii scans your repos, aggregates languages and topics, and generates a bio, tagline, and skill categories from your actual code.',
+      'Unified Import menu — Resume, GitHub, and LinkedIn are now organized under a single Import button with a clean dropdown. Resume upload moved from the top bar into the menu.',
+      'Importing docs page — new documentation at /docs/importing covering all three import methods with step-by-step instructions.',
+    ],
+    improvements: [
+      'Import button uses primary blue styling so it stands out as the first action for new users.',
+      'LLM output coercion handles null values, bare URLs, and array-to-string mismatches across all import flows.',
     ],
     fixes: [
       'Twitter renamed to X on the contact page.',
       'Theme selection dropdown now renders above the light/dark mode toggle.',
+    ],
+  },
+  {
+    version: '1.1.0',
+    date: 'April 12, 2026',
+    title: 'LinkedIn import',
+    features: [
+      'LinkedIn profile import — export your LinkedIn profile as PDF and upload it to folii. AI parses your experience, education, skills, and bio into a polished portfolio. Step-by-step instructions included in the UI.',
     ],
   },
   {

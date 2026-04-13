@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 
 export const DOCS_NAV = [
   { href: '/docs', label: 'Getting Started' },
+  { href: '/docs/importing', label: 'Importing' },
   { href: '/docs/editing', label: 'Editing with AI' },
   { href: '/docs/themes', label: 'Themes' },
   { href: '/docs/publishing', label: 'Publishing' },

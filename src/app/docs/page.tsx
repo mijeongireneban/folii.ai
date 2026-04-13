@@ -29,10 +29,11 @@ export default function GettingStartedPage() {
         <li style={doc.step}>
           <span style={doc.stepNum}>01</span>
           <span style={doc.stepText}>
-            <strong style={{ color: '#fff' }}>Upload your resume.</strong>{' '}
-            Drop a PDF, TXT, or Markdown file into the editor. folii&apos;s AI
-            extracts your experience, projects, skills, and contact info into
-            structured content. No copy-pasting, no form fields.
+            <strong style={{ color: '#fff' }}>Import your data.</strong>{' '}
+            Click the Import button to upload a resume, connect GitHub, or
+            upload a LinkedIn PDF export. folii&apos;s AI extracts your
+            experience, projects, skills, and contact info into structured
+            content. No copy-pasting, no form fields.
           </span>
         </li>
         <li style={doc.step}>
@@ -121,6 +122,13 @@ export default function GettingStartedPage() {
 
       <h2 style={doc.h2}>What&apos;s next</h2>
       <ul style={doc.ul}>
+        <li style={doc.bullet}>
+          <span style={doc.bulletDot} />
+          <span style={doc.bulletText}>
+            <Link href="/docs/importing" style={doc.link}>Importing</Link> — upload
+            a resume, connect GitHub, or import from LinkedIn.
+          </span>
+        </li>
         <li style={doc.bullet}>
           <span style={doc.bulletDot} />
           <span style={doc.bulletText}>
