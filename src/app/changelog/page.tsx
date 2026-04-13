@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Logo } from '@/components/Logo'
 
 export const metadata = {
   title: 'Changelog — folii.ai',
@@ -101,8 +102,8 @@ export default function ChangelogPage() {
       <style>{RESPONSIVE_CSS}</style>
 
       <nav style={styles.topbar} className="changelog-topbar">
-        <Link href="/" style={styles.brand}>
-          folii.ai
+        <Link href="/" style={{ textDecoration: 'none', color: '#fff' }}>
+          <Logo size={20} color="#fff" />
         </Link>
         <div style={styles.topbarRight}>
           <Link href="/docs" style={styles.topbarLink}>
@@ -172,7 +173,7 @@ export default function ChangelogPage() {
       </div>
 
       <footer style={styles.footer} className="changelog-footer">
-        <div style={styles.footerBrand}>folii.ai</div>
+        <div><Logo size={16} color="#a6a6a6" /></div>
         <div style={styles.footerLinks}>
           <Link href="/docs" style={styles.footerLink}>Docs</Link>
           <Link href="/changelog" style={styles.footerLink}>Changelog</Link>

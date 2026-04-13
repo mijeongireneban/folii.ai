@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { SignOutButton, ThemeToggle } from './LandingActions'
+import { Logo } from '@/components/Logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -131,7 +132,7 @@ export default async function RootPage() {
       `}</style>
 
       <nav style={styles.nav} className="landing-nav">
-        <div style={styles.brand} className="landing-brand">folii.ai</div>
+        <div className="landing-brand"><Logo size={20} /></div>
         <div style={styles.navRight}>
           <Link href="/docs" style={styles.navLink} className="landing-nav-link">
             Docs
@@ -329,7 +330,7 @@ export default async function RootPage() {
       </section>
 
       <footer style={styles.footer} className="landing-footer">
-        <div style={styles.footerBrand} className="landing-footer-brand">folii.ai</div>
+        <div className="landing-footer-brand"><Logo size={16} /></div>
         <div style={styles.footerLinks}>
           <Link href="/docs" style={styles.footerLink} className="landing-footer-link">
             Docs
