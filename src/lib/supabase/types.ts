@@ -62,3 +62,15 @@ export type ChatMessage = {
   content_after: Content | null
   created_at: string
 }
+
+export type Integration = {
+  id: string
+  owner_id: string
+  provider: 'github'
+  access_token: string
+  provider_user_id: string | null
+  provider_username: string | null
+  provider_avatar: string | null
+  created_at: string
+  updated_at: string
+}

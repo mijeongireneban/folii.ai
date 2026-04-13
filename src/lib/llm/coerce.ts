@@ -125,6 +125,19 @@ function coerceExperience(v: unknown): Obj[] | undefined {
   return v.map((raw) => {
     if (!isObj(raw)) return raw as Obj
     const out: Obj = { ...raw }
+
+    // Strip nulls from experience fields.
+    for (const key of Object.keys(out)) {
+      if (out[key] === null) delete out[key]
+    }
+
+    // Coerce string fields that LLM sometimes returns as arrays.
+    for (const key of ['impact', 'company', 'role', 'start', 'end', 'location'] as const) {
+      if (Array.isArray(out[key])) {
+        out[key] = (out[key] as unknown[]).filter((x) => typeof x === 'string').join(' ')
+      }
+    }
+
     // Synonyms for description -> impact fallback.
     if (typeof out.impact !== 'string' && typeof out.description === 'string') {
       out.impact = out.description
@@ -156,6 +169,28 @@ function coerceProjects(v: unknown): Obj[] | undefined {
   return v.map((raw) => {
     if (!isObj(raw)) return raw as Obj
     const out: Obj = { ...raw }
+
+    // Strip nulls from project fields.
+    for (const key of Object.keys(out)) {
+      if (out[key] === null) delete out[key]
+    }
+
+    // Coerce string fields that LLM sometimes returns as arrays.
+    for (const key of ['description', 'title', 'category', 'built_with'] as const) {
+      if (Array.isArray(out[key])) {
+        out[key] = (out[key] as unknown[]).filter((x) => typeof x === 'string').join(' ')
+      }
+    }
+
+    // Coerce URL fields — bare domains, strip invalid values.
+    for (const key of ['url', 'repo', 'release_url', 'screenshot'] as const) {
+      if (key in out) {
+        const coerced = ensureUrl(out[key])
+        if (coerced) out[key] = coerced
+        else delete out[key]
+      }
+    }
+
     if (!('tech' in out)) {
       if (Array.isArray(out.technologies)) {
         out.tech = coerceStringArray(out.technologies)
@@ -295,6 +330,11 @@ export function coerceContent(input: unknown): unknown {
   delete out.icon
   delete out.banner_image
   delete out.illustration
+
+  // Strip null values — LLM returns null for optional fields but Zod expects undefined.
+  for (const key of Object.keys(out)) {
+    if (out[key] === null) delete out[key]
+  }
 
   return out
 }

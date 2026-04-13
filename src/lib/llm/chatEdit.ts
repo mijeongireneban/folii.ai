@@ -71,10 +71,12 @@ export async function chatEdit(
 
   const result = contentSchema.safeParse(parsed)
   if (!result.success) {
+    console.error('[chatEdit] schema issues:', JSON.stringify(result.error.issues, null, 2))
+    console.error('[chatEdit] raw LLM output (first 2000 chars):', raw.slice(0, 2000))
     return {
       ok: false,
       reason: 'invalid_output',
-      detail: result.error.issues.map((i) => i.message).join('; '),
+      detail: result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
     }
   }
   return { ok: true, content: result.data, needsInfo, reply }
