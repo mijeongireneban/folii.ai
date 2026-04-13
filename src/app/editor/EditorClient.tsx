@@ -18,6 +18,7 @@ import { GitHubRepoModal } from './GitHubRepoModal'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
+import { Logo } from '@/components/Logo'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -1026,8 +1027,8 @@ function TopBar({
   return (
     <header style={styles.topbar} className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} className="editor-topbar-left">
-        <a href="/" style={{ ...styles.brand, textDecoration: 'none' }}>
-          folii.ai
+        <a href="/" style={{ textDecoration: 'none', color: '#fff' }}>
+          <Logo size={18} color="#fff" />
         </a>
         <UsernameEditor username={username} onChange={onUsernameChange} />
       </div>

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { DocsNav } from './DocsNav'
+import { Logo } from '@/components/Logo'
 
 export const metadata = {
   title: 'Docs — folii.ai',
@@ -13,8 +14,8 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       <style>{RESPONSIVE_CSS}</style>
 
       <nav style={styles.topbar} className="docs-topbar">
-        <Link href="/" style={styles.brand}>
-          folii.ai
+        <Link href="/" style={{ textDecoration: 'none', color: '#fff' }}>
+          <Logo size={20} color="#fff" />
         </Link>
         <div style={styles.topbarRight}>
           <Link href="/docs" style={styles.topbarLink}>
