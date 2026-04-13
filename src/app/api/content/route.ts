@@ -81,26 +81,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'db_error', detail: updateErr.message }, { status: 500 })
   }
 
-  const { data: assistantMsg } = await admin
-    .from('chat_messages')
-    .insert({
-      site_id: site.id,
-      role: 'assistant',
-      content: 'Applied direct JSON edit.',
-      content_after: parsed.data,
-    })
-    .select('id, created_at')
-    .single()
-
   return NextResponse.json({
     ok: true,
     content: parsed.data,
-    message: {
-      id: assistantMsg?.id,
-      role: 'assistant',
-      content: 'Applied direct JSON edit.',
-      created_at: assistantMsg?.created_at,
-    },
   })
 }
 

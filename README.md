@@ -1,48 +1,53 @@
 # folii
 
-**A personal site in 5 minutes. In your voice.**
+**Ship your portfolio in minutes, not weeks.**
 
 [Try folii →](https://folii-ai.vercel.app)
 
-<!-- TODO: replace with public/readme-hero.gif once recorded. See docs/launch/og-image-spec.md -->
-![folii demo: upload a resume, refine through chat, publish a personal site](public/readme-hero.gif)
-
 ## Why folii
 
-Most engineers don't have a personal site. Not because they can't. Because cloning a Vercel template takes a weekend, and after all that, the copy still reads like a LinkedIn bio. "Passionate full-stack engineer building scalable solutions." Nobody talks like that.
+Most engineers don't have a personal site. Not because they can't build one, but because it takes a weekend to clone a template and the copy still reads like a LinkedIn bio. folii fixes the content problem: upload your resume, refine with AI chat, pick a theme, and publish. Five minutes from PDF to live link.
 
-folii's wedge is content, not design. You get exactly one beautiful template per persona. You never touch the layout. The chat only modifies content, so the product can obsess over one thing: getting the AI to write in your voice instead of corporate-speak.
-
-v1 ships for software engineers with 3 to 7 years of experience. Mid-career, GitHub presence, a few real projects. Other personas (designers, PMs, academics) arrive later as new templates, not as settings knobs.
-
-What you actually do: upload your resume as a PDF or paste it as text, review the draft, refine through chat ("make the bio shorter", "drop the grad school project"), and publish to a public URL. About 5 minutes from file to live link.
+folii is built for software engineers with real experience and real projects. It's not a website builder, not a link-in-bio page, and not a template store. You talk to an AI and it handles the rest.
 
 ## How it works
 
-1. **Upload your resume.** PDF or paste-as-text. The text is extracted server-side and shown back to you so you can fix any parsing weirdness before burning an LLM call.
-2. **Refine through chat.** Ask for shorter, sharper, or different. The chat returns a JSON Patch, which gets validated against the schema before it's applied. Bad responses never corrupt your content.
-3. **Publish.** One click. Your site goes live at `folii-ai.vercel.app/your-name` and is statically cached so the first click is instant.
+1. **Upload your resume.** Drop a PDF. The AI parser extracts your experience, projects, skills, and links into structured content.
+2. **Refine with AI chat.** Say "tighten the bio", "add a project about X", or "quantify my impact at Acme". The preview updates live. Revert any edit with one click.
+3. **Pick a theme.** Choose from 40+ color themes, each with dark and light mode. Your visitors can toggle between them.
+4. **Publish.** One click. Your portfolio is live at `folii.ai/your-username`. Update anytime.
 
-## What's in v1
+## Features
 
-One template, built for the modal mid-career software engineer. Email and password auth. Resume upload via PDF or text paste. Chat-driven content edits with one-level undo. JSON view for power users who want to hand-fix. Public portfolio at `/[username]`. Rate-limited LLM calls per user. Design freedom is deliberately zero, that's the wedge.
+- **AI-powered editing** — chat with folii to rewrite, add, or remove content in natural language
+- **Resume parsing** — upload a PDF and get a structured portfolio in seconds
+- **GitHub project import** — paste a repo URL and get a polished project entry with name, description, tech stack, and stars
+- **40+ themes** — dark and light variants for every theme, sourced from the tweakcn community
+- **Smart suggestions** — context-aware chips that suggest edits based on what's missing
+- **Undo/revert** — roll back any AI edit from the chat history
+- **JSON editor** — power users can edit the raw portfolio data directly
+- **Section hiding** — toggle Experience, Skills, Projects, or Contact visibility
+- **Project screenshots** — upload images for your project cards
+- **Profile avatar** — upload and crop a profile photo
+- **SEO meta tags** — Open Graph and Twitter cards with dynamic preview images
+- **Mobile responsive** — editor and published portfolios work on all screen sizes
+- **Sentry error tracking** — production error monitoring with Linear integration
+- **Documentation** — getting started guide, editing tips, theme docs, publishing guide, and FAQ at `/docs`
 
 <details>
 <summary><strong>Stack</strong></summary>
 
-- Next.js 16 (app router, server components, server actions)
+- Next.js (app router, server components)
 - React 19, TypeScript strict mode
-- Tailwind + shadcn/ui (radix new-york style)
 - Supabase (Postgres, Auth, Storage) with row-level security
-- OpenAI SDK with structured outputs (`response_format: { type: "json_schema" }`)
+- OpenAI SDK with structured outputs (`response_format: { type: "json_object" }`)
 - Zod as the single source of truth for content shape
-- `pdfjs-dist` for layout-aware server-side PDF parsing
-- `fast-json-patch` (RFC 6902) for chat edits
-- Upstash Ratelimit, keyed by user
-- CodeMirror 6 for the JSON view
+- `pdfjs-dist` for server-side PDF parsing
+- Sentry for error tracking
+- CodeMirror 6 for the JSON editor
 - Deployed on Vercel
 
-Built with Claude Code + gstack. Full PRD, architecture, and implementation plan live under [`docs/`](./docs).
+Built with Claude Code. Full PRD, architecture, and implementation plan live under [`docs/`](./docs).
 
 </details>
 
@@ -51,7 +56,7 @@ Built with Claude Code + gstack. Full PRD, architecture, and implementation plan
 
 ```bash
 pnpm install
-cp .env.example .env.local   # fill in Supabase + OpenAI keys
+cp .env.example .env.local   # fill in Supabase + OpenAI + Sentry keys
 pnpm dev
 ```
 

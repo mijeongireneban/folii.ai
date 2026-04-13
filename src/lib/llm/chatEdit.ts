@@ -34,14 +34,14 @@ export async function chatEdit(
         },
       ],
       response_format: { type: 'json_object' },
+    }, {
+      timeout: 45_000, // 45s to leave buffer within 60s function limit
     })
     raw = res.choices[0]?.message?.content ?? ''
   } catch (err) {
-    return {
-      ok: false,
-      reason: 'llm_error',
-      detail: err instanceof Error ? err.message : String(err),
-    }
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error('[chatEdit] LLM call failed:', detail)
+    return { ok: false, reason: 'llm_error', detail }
   }
 
   let parsed: unknown
