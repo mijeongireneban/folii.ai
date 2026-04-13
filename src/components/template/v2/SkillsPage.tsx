@@ -1,0 +1,83 @@
+import {
+  Code2,
+  Server,
+  Globe,
+  FlaskConical,
+  DatabaseZap,
+  Cloud,
+  Bot,
+  Wrench,
+  Palette,
+  Smartphone,
+  Cpu,
+  Layers,
+  type LucideIcon,
+} from 'lucide-react'
+import type { Content } from '@/lib/content/schema'
+
+// Skills grid — ported from abt-mj/skills.tsx. Fully schema-driven: categories
+// and items come from content.skills[]. Icon names in the schema map to lucide
+// components via ICON_MAP; unknown names fall back to Layers.
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Code2,
+  Server,
+  Globe,
+  FlaskConical,
+  DatabaseZap,
+  Cloud,
+  Bot,
+  Wrench,
+  Palette,
+  Smartphone,
+  Cpu,
+  Layers,
+}
+
+function iconFor(name: string | undefined): LucideIcon {
+  if (!name) return Layers
+  return ICON_MAP[name] ?? Layers
+}
+
+export function SkillsPage({ content }: { content: Content }) {
+  const categories = content.skills
+  if (categories.length === 0) {
+    return (
+      <div className="w-full max-w-5xl">
+        <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
+          No skills listed yet.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-5xl">
+      <div className="bg-card rounded-xl border p-3 sm:p-6">
+        <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {categories.map((cat) => {
+            const Icon = iconFor(cat.icon)
+            return (
+              <div key={cat.category} className="space-y-2 rounded-lg border p-3 sm:space-y-3 sm:p-4">
+                <h4 className="flex items-center gap-2 text-xs font-medium sm:text-sm">
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  {cat.category}
+                </h4>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {cat.items.map((item) => (
+                    <div
+                      key={item}
+                      className="bg-muted/40 hover:border-muted rounded-md border border-transparent px-2 py-1 text-xs transition-colors sm:px-3 sm:py-1.5 sm:text-sm"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
