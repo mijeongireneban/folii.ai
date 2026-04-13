@@ -16,6 +16,19 @@ type ChangelogEntry = {
 
 const entries: ChangelogEntry[] = [
   {
+    version: '1.1.0',
+    date: 'April 12, 2026',
+    title: 'LinkedIn import & unified Import menu',
+    features: [
+      'LinkedIn profile import — export your LinkedIn profile as PDF and upload it to folii. AI parses your experience, education, skills, and bio into a polished portfolio. Step-by-step instructions included in the UI.',
+      'Unified Import menu — the Import button now opens a dropdown with GitHub and LinkedIn options, making it easy to add more import sources in the future.',
+    ],
+    fixes: [
+      'Twitter renamed to X on the contact page.',
+      'Theme selection dropdown now renders above the light/dark mode toggle.',
+    ],
+  },
+  {
     version: '1.0.0',
     date: 'April 12, 2026',
     title: 'v1 launch',

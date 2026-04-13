@@ -45,7 +45,7 @@ export function ContactPage({ content }: { content: Content }) {
   if (content.links.twitter) {
     items.push({
       icon: <TwitterIcon className="text-muted-foreground h-4 w-4" />,
-      label: 'Twitter',
+      label: 'X',
       href: content.links.twitter,
     })
   }
