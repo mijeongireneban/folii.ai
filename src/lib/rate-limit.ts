@@ -18,6 +18,8 @@ export const BUCKETS = {
   upload:      { name: 'upload',      max: 10, windowSeconds: 60 },       // 10 uploads/min/user
   publish:     { name: 'publish',     max: 5,  windowSeconds: 60 },       // 5 publishes/min/user
   ipChat:      { name: 'chat-ip',     max: 60, windowSeconds: 60 },       // fallback per-IP
+  blogChat:      { name: 'blog-chat',      max: 20, windowSeconds: 60 },    // 20 blog msgs/min/user
+  blogChatDaily: { name: 'blog-chat-day',  max: 50, windowSeconds: 86400 }, // 50 blog msgs/day/user
 } as const satisfies Record<string, RateLimitBucket>
 
 export function bucketKey(bucket: RateLimitBucket, subject: string): string {

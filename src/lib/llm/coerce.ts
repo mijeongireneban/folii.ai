@@ -320,7 +320,7 @@ export function coerceContent(input: unknown): unknown {
 
   // Normalize hidden_sections to valid keys only.
   if ('hidden_sections' in out) {
-    const valid = new Set(['experience', 'skills', 'projects', 'contact'])
+    const valid = new Set(['experience', 'skills', 'projects', 'contact', 'blog'])
     out.hidden_sections = coerceStringArray(out.hidden_sections)
       .map((s) => (s as string).toLowerCase().trim())
       .filter((s) => valid.has(s))
@@ -334,6 +334,48 @@ export function coerceContent(input: unknown): unknown {
   // Strip null values — LLM returns null for optional fields but Zod expects undefined.
   for (const key of Object.keys(out)) {
     if (out[key] === null) delete out[key]
+  }
+
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Blog post coercion — lighter than portfolio, mostly slug normalization
+// and null stripping.
+// ---------------------------------------------------------------------------
+export function coerceBlogPost(input: unknown): unknown {
+  if (!isObj(input)) return input
+  const out: Obj = { ...input }
+
+  // Strip null values — LLM returns null for optional fields.
+  for (const key of Object.keys(out)) {
+    if (out[key] === null) delete out[key]
+  }
+
+  // Normalize slug: lowercase, replace spaces/underscores with hyphens,
+  // strip non-URL-safe chars, collapse multiple hyphens.
+  if (typeof out.slug === 'string') {
+    out.slug = out.slug
+      .toLowerCase()
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+  } else if (typeof out.title === 'string') {
+    // Auto-generate slug from title if missing.
+    out.slug = out.title
+      .toLowerCase()
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+  }
+
+  // Coerce tags to string array.
+  if ('tags' in out) {
+    out.tags = coerceStringArray(out.tags)
   }
 
   return out

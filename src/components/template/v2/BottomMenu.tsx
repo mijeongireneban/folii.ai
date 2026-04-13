@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Briefcase, Wrench, FolderKanban, Mail } from 'lucide-react'
+import { User, Briefcase, Wrench, FolderKanban, Mail, PenLine } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Fixed bottom nav — ported from abt-mj/components/menu. Uses the hover-tooltip
@@ -131,6 +131,7 @@ export function BottomMenu({
     { sectionKey: 'skills', icon: Wrench, label: 'Skills', href: `${basePath}/skills` },
     { sectionKey: 'projects', icon: FolderKanban, label: 'Projects', href: `${basePath}/projects` },
     { sectionKey: 'contact', icon: Mail, label: 'Contact', href: `${basePath}/contact` },
+    { sectionKey: 'blog', icon: PenLine, label: 'Blog', href: `${basePath}/blog` },
   ]
   const items = allItems.filter(
     (item) => !item.sectionKey || !hiddenSections.includes(item.sectionKey)

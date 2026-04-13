@@ -71,6 +71,7 @@ export const sectionKeySchema = z.enum([
   'skills',
   'projects',
   'contact',
+  'blog',
 ])
 export type SectionKey = z.infer<typeof sectionKeySchema>
 
@@ -94,7 +95,7 @@ export const contentSchema = z.object({
   resume_url: z.string().url().max(500).optional(),
   // Nav visibility — sections listed here are hidden from the nav bar.
   // "profile" (About Me) cannot be hidden; it's always shown.
-  hidden_sections: z.array(sectionKeySchema).max(4).default([]),
+  hidden_sections: z.array(sectionKeySchema).max(5).default([]),
   // Visual theme — stores the preset ID. Resolved at render time via THEME_MAP.
   theme: themeSchema.optional(),
 })

@@ -182,6 +182,7 @@ export async function GET() {
     .from('chat_messages')
     .select('id, role, content, content_after, created_at')
     .eq('site_id', site.id)
+    .is('blog_post_id', null)
     .order('created_at', { ascending: true })
     .limit(200)
   if (error) {

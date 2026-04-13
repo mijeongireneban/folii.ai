@@ -15,6 +15,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
 import { GitHubRepoModal } from './GitHubRepoModal'
+import { BlogPane, BlogPreview, type BlogPostRow } from './BlogPane'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
@@ -32,6 +33,7 @@ import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 
 type Mode = 'preview' | 'json'
+type EditorTab = 'portfolio' | 'blog'
 
 export function EditorClient({
   initialContent,
@@ -85,6 +87,13 @@ export function EditorClient({
   const [ghUsername, setGhUsername] = useState<string | null>(null)
   const [ghModalOpen, setGhModalOpen] = useState(false)
   const [ghImporting, setGhImporting] = useState(false)
+
+  // Blog mode state
+  const [editorTab, setEditorTab] = useState<EditorTab>('portfolio')
+  const [selectedPost, setSelectedPost] = useState<BlogPostRow | null>(null)
+  const [blogPosts, setBlogPosts] = useState<BlogPostRow[]>([])
+  const [blogMessages, setBlogMessages] = useState<Msg[]>([])
+  const [blogSiteId, setBlogSiteId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/github/status')
@@ -292,6 +301,95 @@ export function EditorClient({
           content: msg.content,
           created_at: msg.created_at,
           content_after: json.content as Content,
+        },
+      ])
+    })
+  }
+
+  async function sendBlogMessage(text: string, retryId?: string) {
+    if (!text || isPending) return
+    setChatError(null)
+
+    if (retryId) {
+      setBlogMessages((m) => m.map((msg) => msg.id === retryId ? { ...msg, error: undefined } : msg))
+    } else {
+      const optimisticId = `tmp-${Date.now()}`
+      setBlogMessages((m) => [
+        ...m,
+        {
+          id: optimisticId,
+          role: 'user',
+          content: text,
+          created_at: new Date().toISOString(),
+          content_after: null,
+        },
+      ])
+    }
+
+    startTransition(async () => {
+      let res: Response
+      let json: Record<string, unknown>
+      try {
+        res = await fetch('/api/blog/chat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            postId: selectedPost?.id ?? undefined,
+          }),
+        })
+        json = await res.json()
+      } catch {
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'Network error. Check your connection.' } : msg)
+        })
+        return
+      }
+
+      if (!res.ok) {
+        let errorMsg: string
+        if (res.status === 429) {
+          errorMsg = (json.message as string) ?? 'Too many requests. Please try again later.'
+        } else {
+          errorMsg = (json.error as string) ?? 'Something went wrong. Try again.'
+        }
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: errorMsg } : msg)
+        })
+        return
+      }
+
+      if (typeof json.dailyRemaining === 'number') {
+        setDailyRemaining(json.dailyRemaining as number)
+      }
+
+      // Update selected post with the returned data
+      const post = json.post as BlogPostRow | null
+      if (post) {
+        setSelectedPost(post)
+        // Update posts list
+        setBlogPosts((prev) => {
+          const exists = prev.find((p) => p.id === post.id)
+          if (exists) {
+            return prev.map((p) => p.id === post.id ? post : p)
+          }
+          return [post, ...prev]
+        })
+      }
+
+      const msg = json.message as { id: string; content: string; created_at: string }
+      setBlogMessages((m) => [
+        ...m,
+        {
+          id: msg.id,
+          role: 'assistant',
+          content: msg.content,
+          created_at: msg.created_at,
+          content_after: null,
         },
       ])
     })
@@ -564,10 +662,75 @@ export function EditorClient({
         importing={ghImporting}
       />
 
+      {/* Mode toggle: Portfolio / Blog */}
+      <div style={{
+        display: 'flex',
+        gap: 0,
+        background: 'rgba(255,255,255,0.04)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        paddingLeft: 16,
+      }}>
+        {(['portfolio', 'blog'] as EditorTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setEditorTab(tab)
+              if (tab === 'blog') {
+                // Load blog site ID on first switch
+                if (!blogSiteId) {
+                  fetch('/api/blog/posts')
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if (d.siteId) setBlogSiteId(d.siteId)
+                      setBlogPosts(d.posts ?? [])
+                    })
+                    .catch(() => {})
+                }
+              }
+            }}
+            style={{
+              padding: '10px 20px',
+              fontSize: 13,
+              fontWeight: 500,
+              color: editorTab === tab ? '#fff' : '#888',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: editorTab === tab ? '2px solid #0099ff' : '2px solid transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.15s',
+            }}
+          >
+            {tab === 'portfolio' ? 'Portfolio' : 'Blog'}
+          </button>
+        ))}
+      </div>
+
       <div
         className="editor-workspace"
         style={styles.workspace}
       >
+        {editorTab === 'blog' ? (
+          <>
+            {/* Blog mode: sidebar + preview + chat */}
+            <BlogPane
+              siteId={blogSiteId}
+              selectedPostId={selectedPost?.id ?? null}
+              onSelectPost={(post) => {
+                setSelectedPost(post)
+                setBlogMessages([])
+              }}
+              onPostsChange={setBlogPosts}
+            />
+            <section
+              className="editor-preview-pane"
+              style={{ ...styles.previewPane, flex: 1 }}
+            >
+              <BlogPreview post={selectedPost} />
+            </section>
+          </>
+        ) : (
+          <>
         {/* Preview */}
         <section
           className="editor-preview-pane"
@@ -683,6 +846,25 @@ export function EditorClient({
           chatError={chatError}
           dailyRemaining={dailyRemaining}
         />
+          </>
+        )}
+
+        {/* Blog chat pane (when in blog mode) */}
+        {editorTab === 'blog' && (
+          <ChatPane
+            messages={blogMessages}
+            content={content}
+            isPlaceholder={false}
+            isPending={isPending}
+            onSend={sendBlogMessage}
+            onRetry={(msgId, text) => sendBlogMessage(text, msgId)}
+            onRevert={() => {}}
+            reverting={null}
+            uploadError={null}
+            chatError={chatError}
+            dailyRemaining={dailyRemaining}
+          />
+        )}
       </div>
     </main>
   )
