@@ -15,7 +15,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
 import { GitHubRepoModal } from './GitHubRepoModal'
-import { BlogPane, BlogPreview, type BlogPostRow } from './BlogPane'
+import { BlogBrowser, type BlogPostRow } from './BlogPane'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
@@ -94,6 +94,7 @@ export function EditorClient({
   const [blogPosts, setBlogPosts] = useState<BlogPostRow[]>([])
   const [blogMessages, setBlogMessages] = useState<Msg[]>([])
   const [blogSiteId, setBlogSiteId] = useState<string | null>(null)
+  const blogChatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     fetch('/api/github/status')
@@ -381,14 +382,24 @@ export function EditorClient({
         })
       }
 
-      const msg = json.message as { id: string; content: string; created_at: string }
+      const msg = json.message as { id?: string; content?: string; created_at?: string } | undefined
+      const replyText = msg?.content
+      if (!replyText) {
+        console.error('[blog chat] malformed response:', json)
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'No reply returned. Check the server logs.' } : msg)
+        })
+        return
+      }
       setBlogMessages((m) => [
         ...m,
         {
-          id: msg.id,
+          id: msg?.id ?? `assistant-${Date.now()}`,
           role: 'assistant',
-          content: msg.content,
-          created_at: msg.created_at,
+          content: replyText,
+          created_at: msg?.created_at ?? new Date().toISOString(),
           content_after: null,
         },
       ])
@@ -708,27 +719,44 @@ export function EditorClient({
 
       <div
         className="editor-workspace"
-        style={styles.workspace}
+        style={{
+          ...styles.workspace,
+          // Animate the right pane open when a blog post is selected.
+          // Keeping two tracks (1fr {n}px) so the grid can interpolate smoothly.
+          gridTemplateColumns:
+            editorTab === 'blog' && !selectedPost ? '1fr 0px' : '1fr 400px',
+          transition: 'grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
         {editorTab === 'blog' ? (
-          <>
-            {/* Blog mode: sidebar + preview + chat */}
-            <BlogPane
-              siteId={blogSiteId}
-              selectedPostId={selectedPost?.id ?? null}
-              onSelectPost={(post) => {
-                setSelectedPost(post)
-                setBlogMessages([])
-              }}
-              onPostsChange={setBlogPosts}
-            />
-            <section
-              className="editor-preview-pane"
-              style={{ ...styles.previewPane, flex: 1 }}
+          <section
+            className="editor-preview-pane"
+            style={styles.previewPane}
+          >
+            <div
+              className="editor-preview-frame"
+              style={styles.previewFrame}
             >
-              <BlogPreview post={selectedPost} />
-            </section>
-          </>
+              <BrowserFrame
+                url={
+                  selectedPost
+                    ? `folii.ai/${username}/blog/${selectedPost.slug}`
+                    : `folii.ai/${username}/blog`
+                }
+              >
+                <BlogBrowser
+                  siteId={blogSiteId}
+                  selectedPost={selectedPost}
+                  onSelectPost={(post) => {
+                    setSelectedPost(post)
+                    setBlogMessages([])
+                  }}
+                  onPostsChange={setBlogPosts}
+                  onRequestChatFocus={() => blogChatInputRef.current?.focus()}
+                />
+              </BrowserFrame>
+            </div>
+          </section>
         ) : (
           <>
         {/* Preview */}
@@ -849,7 +877,9 @@ export function EditorClient({
           </>
         )}
 
-        {/* Blog chat pane (when in blog mode) */}
+        {/* Blog chat pane — always mounted when on the blog tab, but the
+            workspace grid collapses its column to 0 on the list view. Opacity
+            + overflow hide it while the grid column animates. */}
         {editorTab === 'blog' && (
           <ChatPane
             messages={blogMessages}
@@ -863,6 +893,16 @@ export function EditorClient({
             uploadError={null}
             chatError={chatError}
             dailyRemaining={dailyRemaining}
+            mode="blog"
+            inputRef={blogChatInputRef}
+            style={{
+              minWidth: 0,
+              overflow: 'hidden',
+              opacity: selectedPost ? 1 : 0,
+              pointerEvents: selectedPost ? 'auto' : 'none',
+              transition: 'opacity 0.22s ease-in-out',
+              transitionDelay: selectedPost ? '80ms' : '0ms',
+            }}
           />
         )}
       </div>

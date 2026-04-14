@@ -118,12 +118,19 @@ export async function POST(request: NextRequest) {
   }
 
   // 7. Save user message
-  await admin.from('chat_messages').insert({
+  const { error: userMsgErr } = await admin.from('chat_messages').insert({
     site_id: site.id,
     role: 'user',
     content: body.message,
     blog_post_id: body.postId ?? null,
   })
+  if (userMsgErr) {
+    console.error('[blog/chat] failed to save user message:', userMsgErr)
+    return NextResponse.json(
+      { error: 'db_error', detail: `chat_messages insert failed: ${userMsgErr.message}. Has migration 0008_chat_blog_fk.sql been applied?` },
+      { status: 500 }
+    )
+  }
 
   // 8. Run the blog edit
   const result = await chatBlogEdit(
@@ -199,7 +206,7 @@ export async function POST(request: NextRequest) {
   // 10. Save assistant message
   const assistantText =
     result.reply ?? 'Updated your post. Let me know what to change next.'
-  const { data: assistantMsg } = await admin
+  const { data: assistantMsg, error: assistantMsgErr } = await admin
     .from('chat_messages')
     .insert({
       site_id: site.id,
@@ -209,6 +216,13 @@ export async function POST(request: NextRequest) {
     })
     .select('id, created_at')
     .single()
+  if (assistantMsgErr || !assistantMsg) {
+    console.error('[blog/chat] failed to save assistant message:', assistantMsgErr)
+    return NextResponse.json(
+      { error: 'db_error', detail: `assistant message insert failed: ${assistantMsgErr?.message ?? 'no row returned'}` },
+      { status: 500 }
+    )
+  }
 
   // 11. Reload the post to return current state
   let post = null
@@ -225,10 +239,10 @@ export async function POST(request: NextRequest) {
     ok: true,
     post,
     message: {
-      id: assistantMsg?.id,
+      id: assistantMsg.id,
       role: 'assistant',
       content: assistantText,
-      created_at: assistantMsg?.created_at,
+      created_at: assistantMsg.created_at,
     },
     dailyRemaining: dailyRl.remaining,
   })

@@ -26,6 +26,94 @@ function slugify(text: string): string {
     .slice(0, 200)
 }
 
+// Medium actively blocks scraping (returns 403 for most UAs), but the per-user
+// RSS feed at /feed/@{user} serves full <content:encoded> HTML. We parse the feed,
+// find the item with the matching article ID (the trailing 12-char hex in every
+// Medium URL), and convert that to markdown.
+async function tryMediumRss(
+  url: string,
+  turndown: TurndownService
+): Promise<{ title: string; body: string; tags: string[] } | null> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+
+  const host = parsed.hostname.toLowerCase()
+  const isMediumDomain = host === 'medium.com' || host.endsWith('.medium.com')
+  if (!isMediumDomain) return null
+
+  // Every Medium article URL ends with a 12-char hex ID (e.g. …-836869f88375).
+  const idMatch = parsed.pathname.match(/([a-f0-9]{12})\/?$/)
+  if (!idMatch) return null
+  const articleId = idMatch[1]
+
+  // Figure out which feed to hit:
+  //   medium.com/@user/…          → /feed/@user
+  //   user.medium.com/…           → /feed/@user
+  //   medium.com/publication/…    → /feed/publication
+  let feedPath: string | null = null
+  if (host === 'medium.com') {
+    if (parsed.pathname.startsWith('/@')) {
+      const user = parsed.pathname.split('/')[1] // '@user'
+      feedPath = `/feed/${user}`
+    } else {
+      const pub = parsed.pathname.split('/')[1]
+      if (pub) feedPath = `/feed/${pub}`
+    }
+  } else {
+    // {user}.medium.com
+    const user = host.split('.')[0]
+    feedPath = `/feed/@${user}`
+  }
+  if (!feedPath) return null
+
+  try {
+    const res = await fetch(`https://medium.com${feedPath}`, {
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; folii.ai/1.0; +https://folii.ai)',
+        Accept: 'application/rss+xml, application/xml, text/xml',
+      },
+    })
+    if (!res.ok) return null
+    const rss = await res.text()
+
+    // Find the <item> block containing this article's ID.
+    const itemPattern = /<item>([\s\S]*?)<\/item>/g
+    let match: RegExpExecArray | null
+    while ((match = itemPattern.exec(rss))) {
+      const block = match[1]
+      if (!block.includes(articleId)) continue
+
+      const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)
+      const contentMatch = block.match(
+        /<content:encoded>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content:encoded>/
+      )
+      const categoryMatches = [
+        ...block.matchAll(/<category>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/category>/g),
+      ]
+
+      const html = contentMatch?.[1]?.trim() ?? ''
+      if (!html) return null
+
+      return {
+        title: (titleMatch?.[1] ?? '').trim(),
+        body: turndown.turndown(html),
+        tags: categoryMatches
+          .map((m) => m[1].trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 10),
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // Try Dev.to API first (cleaner output, no scraping needed).
 async function tryDevToApi(
   url: string
@@ -54,7 +142,8 @@ async function tryDevToApi(
 
 // Generic extraction: fetch HTML → Readability → Turndown.
 async function extractFromUrl(
-  url: string
+  url: string,
+  turndown: TurndownService
 ): Promise<{ title: string; body: string; tags: string[] }> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(15_000),
@@ -64,6 +153,11 @@ async function extractFromUrl(
     },
   })
   if (!res.ok) {
+    if (res.status === 403 || res.status === 401) {
+      throw new Error(
+        `This site (${new URL(url).hostname}) blocks direct fetching. Try pasting the markdown into chat instead.`
+      )
+    }
     throw new Error(`Failed to fetch URL (${res.status})`)
   }
 
@@ -78,10 +172,6 @@ async function extractFromUrl(
     )
   }
 
-  const turndown = new TurndownService({
-    headingStyle: 'atx',
-    codeBlockStyle: 'fenced',
-  })
   const markdown = turndown.turndown(article.content)
 
   // Try to extract tags from meta keywords.
@@ -154,14 +244,23 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Extract content from URL
+  const turndown = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+  })
   let extracted: { title: string; body: string; tags: string[] }
   try {
-    // Try Dev.to API first for cleaner output.
+    // Source-specific paths first (cleaner output, bypass anti-scraping).
     const devTo = await tryDevToApi(body.url)
     if (devTo) {
       extracted = devTo
     } else {
-      extracted = await extractFromUrl(body.url)
+      const medium = await tryMediumRss(body.url, turndown)
+      if (medium) {
+        extracted = medium
+      } else {
+        extracted = await extractFromUrl(body.url, turndown)
+      }
     }
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'Failed to extract content'
