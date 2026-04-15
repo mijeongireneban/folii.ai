@@ -9,7 +9,11 @@ import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import { fetchGitHubReposFromMessage, formatRepoContext } from '@/lib/github/fetch'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+// The LLM call alone can take up to 45s; combined with rate-limit checks,
+// Supabase reads/writes, and optional GitHub enrichment, the previous 60s
+// cap left ~15s of headroom and was being exceeded, causing Vercel to kill
+// the function mid-response ("failed to pipe response" — TOK-41).
+export const maxDuration = 120
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(2000),
