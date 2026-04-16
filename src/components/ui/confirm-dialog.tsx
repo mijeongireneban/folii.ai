@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import {
   AlertDialog,
@@ -72,28 +73,36 @@ export function ConfirmDialog({
   request: ConfirmRequest | null
   onOpenChange: (open: boolean) => void
 }) {
+  // Mirror the latest non-null request so content stays rendered during
+  // Radix's exit animation. Without this, clearing `request` on close makes
+  // the title/description flash to blank while the dialog fades out.
+  const [shown, setShown] = useState<ConfirmRequest | null>(request)
+  useEffect(() => {
+    if (request) setShown(request)
+  }, [request])
+
   return (
     <AlertDialog open={request !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent style={dialogStyle}>
         <AlertDialogHeader>
-          <AlertDialogTitle style={titleStyle}>{request?.title}</AlertDialogTitle>
+          <AlertDialogTitle style={titleStyle}>{shown?.title}</AlertDialogTitle>
           <AlertDialogDescription style={descriptionStyle}>
-            {request?.description}
+            {shown?.description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogPrimitive.Cancel style={cancelStyle}>
-            {request?.cancelLabel ?? 'Cancel'}
+            {shown?.cancelLabel ?? 'Cancel'}
           </AlertDialogPrimitive.Cancel>
           <AlertDialogPrimitive.Action
-            style={confirmStyle(request?.destructive)}
+            style={confirmStyle(shown?.destructive)}
             onClick={async (e) => {
               e.preventDefault()
-              await request?.onConfirm()
+              await shown?.onConfirm()
               onOpenChange(false)
             }}
           >
-            {request?.confirmLabel ?? 'Continue'}
+            {shown?.confirmLabel ?? 'Continue'}
           </AlertDialogPrimitive.Action>
         </AlertDialogFooter>
       </AlertDialogContent>
