@@ -7,6 +7,7 @@ import { parseHTML } from 'linkedom'
 import TurndownService from 'turndown'
 import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
+import { safeFetchText } from '@/lib/safe-fetch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -71,15 +72,15 @@ async function tryMediumRss(
   if (!feedPath) return null
 
   try {
-    const res = await fetch(`https://medium.com${feedPath}`, {
-      signal: AbortSignal.timeout(10_000),
+    const res = await safeFetchText(`https://medium.com${feedPath}`, {
+      timeoutMs: 10_000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; folii.ai/1.0; +https://folii.ai)',
         Accept: 'application/rss+xml, application/xml, text/xml',
       },
     })
     if (!res.ok) return null
-    const rss = await res.text()
+    const rss = res.body
 
     // Find the <item> block containing this article's ID.
     const itemPattern = /<item>([\s\S]*?)<\/item>/g
@@ -123,13 +124,16 @@ async function tryDevToApi(
 
   try {
     const slug = match[1]
-    // Dev.to API: search by path
-    const res = await fetch(
-      `https://dev.to/api/articles/${url.split('dev.to/')[1]}`,
-      { signal: AbortSignal.timeout(10_000) }
+    // Dev.to API: {username}/{slug}, stripped of query/hash to avoid mis-parsing.
+    const parsed = new URL(url)
+    const [username] = parsed.pathname.split('/').filter(Boolean)
+    if (!username) return null
+    const res = await safeFetchText(
+      `https://dev.to/api/articles/${username}/${slug}`,
+      { timeoutMs: 10_000 }
     )
     if (!res.ok) return null
-    const data = await res.json()
+    const data = JSON.parse(res.body)
     return {
       title: data.title ?? '',
       body: data.body_markdown ?? '',
@@ -145,8 +149,8 @@ async function extractFromUrl(
   url: string,
   turndown: TurndownService
 ): Promise<{ title: string; body: string; tags: string[] }> {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(15_000),
+  const res = await safeFetchText(url, {
+    timeoutMs: 15_000,
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; folii.ai/1.0; +https://folii.ai)',
       Accept: 'text/html,application/xhtml+xml',
@@ -161,7 +165,7 @@ async function extractFromUrl(
     throw new Error(`Failed to fetch URL (${res.status})`)
   }
 
-  const html = await res.text()
+  const html = res.body
   const { document } = parseHTML(html)
 
   const reader = new Readability(document as unknown as Document)
