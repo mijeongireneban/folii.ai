@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
+import { slugify } from '@/lib/content/slug'
 
 // Explicit Markdown renderers that match DESIGN.md tokens. We can't rely on
 // Tailwind `prose` classes because @tailwindcss/typography isn't installed.
@@ -654,10 +655,21 @@ function BlogEditor({
 }) {
   const [title, setTitle] = useState(post.title)
   const [body, setBody] = useState(post.body)
+  const [slug, setSlug] = useState(post.slug)
   const [view, setView] = useState<'write' | 'preview'>('write')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const lastSavedRef = useRef({ title: post.title, body: post.body })
+  const lastSavedRef = useRef({ title: post.title, body: post.body, slug: post.slug })
+  // True once the user manually edits the slug. While false, the slug tracks
+  // the title so renames keep the URL in sync without nagging the user.
+  const slugLockedRef = useRef(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
+
+  // Keep slug in sync with title while the user hasn't taken ownership of it.
+  useEffect(() => {
+    if (slugLockedRef.current) return
+    const next = slugify(title) || slug
+    if (next !== slug) setSlug(next)
+  }, [title, slug])
 
   // Auto-size the body textarea on mount and on content change (write view only).
   useEffect(() => {
@@ -668,24 +680,33 @@ function BlogEditor({
     el.style.height = `${el.scrollHeight}px`
   }, [body, view])
 
-  // Debounced autosave when title or body changes.
+  // Debounced autosave when title, body, or slug changes.
   useEffect(() => {
     const dirty =
       title !== lastSavedRef.current.title ||
-      body !== lastSavedRef.current.body
+      body !== lastSavedRef.current.body ||
+      slug !== lastSavedRef.current.slug
     if (!dirty) return
 
     setSaveState('saving')
     const handle = setTimeout(async () => {
       try {
+        const payload: Record<string, unknown> = { title, body }
+        if (slug && slug !== lastSavedRef.current.slug) payload.slug = slug
         const res = await fetch(`/api/blog/${post.id}`, {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ title, body }),
+          body: JSON.stringify(payload),
         })
         const json = await res.json()
         if (res.ok && json.ok && json.post) {
-          lastSavedRef.current = { title: json.post.title, body: json.post.body }
+          lastSavedRef.current = {
+            title: json.post.title,
+            body: json.post.body,
+            slug: json.post.slug,
+          }
+          // Server may have deduped the slug (collision fallback) — mirror it back.
+          if (json.post.slug !== slug) setSlug(json.post.slug)
           setSaveState('saved')
           onUpdate(json.post)
         } else {
@@ -696,7 +717,7 @@ function BlogEditor({
       }
     }, 800)
     return () => clearTimeout(handle)
-  }, [title, body, post.id, onUpdate])
+  }, [title, body, slug, post.id, onUpdate])
 
   const isPublished = post.status === 'published'
   const canPublish = title.trim().length > 0 && body.trim().length > 0
@@ -874,9 +895,42 @@ function BlogEditor({
               lineHeight: 1.05,
               letterSpacing: '-1.8px',
               padding: 0,
-              marginBottom: 28,
+              marginBottom: 12,
             }}
           />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 28,
+              fontFamily: "'Azeret Mono', ui-monospace, monospace",
+              fontSize: 12,
+              color: '#a6a6a6',
+            }}
+          >
+            <span style={{ color: '#666' }}>/blog/</span>
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => {
+                slugLockedRef.current = true
+                setSlug(e.target.value.toLowerCase())
+              }}
+              onBlur={() => setSlug((s) => slugify(s))}
+              placeholder="post-slug"
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                fontFamily: 'inherit',
+                fontSize: 12,
+                color: '#e5e5e5',
+                padding: 0,
+              }}
+            />
+          </div>
           <textarea
             ref={bodyRef}
             value={body}
