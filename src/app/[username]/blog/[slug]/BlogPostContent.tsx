@@ -26,7 +26,7 @@ export async function BlogPostContent({ body }: { body: string }) {
 
   return (
     <div
-      className="prose prose-neutral dark:prose-invert prose-headings:text-foreground prose-a:text-primary prose-code:text-foreground prose-pre:bg-muted prose-pre:border-border/50 prose-pre:border prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:p-4 prose-pre:text-sm prose-pre:leading-relaxed prose-code:before:content-none prose-code:after:content-none max-w-none"
+      className="blog-content"
       dangerouslySetInnerHTML={{ __html: String(file) }}
     />
   )

@@ -137,3 +137,170 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Blog post body — markdown → HTML rendered via rehype-pretty-code.
+   Hand-styled to match DESIGN.md (Cabinet Grotesk headings, Inter body,
+   Azeret Mono code, Framer Blue accents). Kept here instead of prose
+   classes because @tailwindcss/typography is not installed and its
+   defaults would fight the Framer aesthetic. */
+.blog-content {
+  color: rgba(255, 255, 255, 0.86);
+  font-family: var(--folii-font-body);
+  font-size: 16px;
+  line-height: 1.75;
+  font-feature-settings: 'cv01', 'cv05', 'cv09', 'cv11', 'ss03', 'ss07';
+}
+
+.blog-content > * + * {
+  margin-top: 1.1em;
+}
+
+.blog-content h1,
+.blog-content h2,
+.blog-content h3,
+.blog-content h4 {
+  color: var(--folii-text);
+  font-family: var(--folii-font-display);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.blog-content h1 {
+  font-size: 2.25rem;
+  letter-spacing: -1.5px;
+  margin-top: 2.25em;
+}
+.blog-content h2 {
+  font-size: 1.75rem;
+  letter-spacing: -1px;
+  margin-top: 2em;
+}
+.blog-content h3 {
+  font-size: 1.375rem;
+  letter-spacing: -0.6px;
+  margin-top: 1.75em;
+}
+.blog-content h4 {
+  font-size: 1.125rem;
+  letter-spacing: -0.3px;
+  margin-top: 1.5em;
+}
+
+.blog-content > h1:first-child,
+.blog-content > h2:first-child,
+.blog-content > h3:first-child,
+.blog-content > h4:first-child {
+  margin-top: 0;
+}
+
+.blog-content p {
+  margin: 0;
+}
+
+.blog-content strong {
+  color: var(--folii-text);
+  font-weight: 600;
+}
+
+.blog-content em {
+  color: rgba(255, 255, 255, 0.92);
+  font-style: italic;
+}
+
+.blog-content a {
+  color: var(--folii-blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 153, 255, 0.4);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+.blog-content a:hover {
+  text-decoration-color: var(--folii-blue);
+}
+
+.blog-content ul,
+.blog-content ol {
+  padding-left: 1.5em;
+  margin: 0;
+}
+.blog-content ul {
+  list-style: disc;
+}
+.blog-content ol {
+  list-style: decimal;
+}
+.blog-content li {
+  margin-top: 0.4em;
+  padding-left: 0.25em;
+}
+.blog-content li::marker {
+  color: rgba(255, 255, 255, 0.35);
+}
+.blog-content li > ul,
+.blog-content li > ol {
+  margin-top: 0.4em;
+}
+
+.blog-content blockquote {
+  border-left: 2px solid var(--folii-blue);
+  padding-left: 1em;
+  color: var(--folii-muted);
+  font-style: italic;
+}
+
+.blog-content hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 2.5em 0;
+}
+
+.blog-content img {
+  max-width: 100%;
+  border-radius: 10px;
+  display: block;
+}
+
+.blog-content :not(pre) > code {
+  font-family: var(--folii-font-mono);
+  font-size: 0.85em;
+  background: var(--folii-frost);
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  color: var(--folii-text);
+}
+
+.blog-content pre {
+  background: #090909;
+  border: 1px solid var(--folii-ring);
+  border-radius: 10px;
+  padding: 1em 1.25em;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.blog-content pre code {
+  font-family: var(--folii-font-mono);
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.blog-content pre code [data-line] {
+  display: block;
+}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.blog-content th,
+.blog-content td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.blog-content th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  color: var(--folii-text);
+}
