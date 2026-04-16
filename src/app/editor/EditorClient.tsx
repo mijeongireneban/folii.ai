@@ -15,6 +15,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { styles, EDITOR_MEDIA_CSS } from './editor-styles'
 import { ChatPane, type Msg } from './ChatPane'
 import { GitHubRepoModal } from './GitHubRepoModal'
+import { BlogBrowser, type BlogPostRow } from './BlogPane'
 import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
@@ -33,6 +34,7 @@ import { validateSlug, slugErrorMessage, USERNAME_MAX } from '@/lib/username'
 
 
 type Mode = 'preview' | 'json'
+type EditorTab = 'portfolio' | 'blog'
 
 export function EditorClient({
   initialContent,
@@ -87,6 +89,13 @@ export function EditorClient({
   const [ghModalOpen, setGhModalOpen] = useState(false)
   const [ghImporting, setGhImporting] = useState(false)
 
+  // Blog mode state
+  const [editorTab, setEditorTab] = useState<EditorTab>('portfolio')
+  const [selectedPost, setSelectedPost] = useState<BlogPostRow | null>(null)
+  const [blogPosts, setBlogPosts] = useState<BlogPostRow[]>([])
+  const [blogMessages, setBlogMessages] = useState<Msg[]>([])
+  const [blogSiteId, setBlogSiteId] = useState<string | null>(null)
+  const blogChatInputRef = useRef<HTMLTextAreaElement>(null)
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequest | null>(null)
 
   useEffect(() => {
@@ -180,6 +189,10 @@ export function EditorClient({
   }
 
   function handleGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
+    // Close the repo picker first. Its overlay sits at zIndex 200 while Radix
+    // AlertDialog renders at z-50, so leaving it open would hide the confirm
+    // behind it and Radix's focus trap would make the page look frozen.
+    setGhModalOpen(false)
     setPendingConfirm({
       title: `Import ${repos.length} ${repos.length === 1 ? 'project' : 'projects'} from GitHub?`,
       description:
@@ -337,6 +350,105 @@ export function EditorClient({
           content: msg.content,
           created_at: msg.created_at,
           content_after: json.content as Content,
+        },
+      ])
+    })
+  }
+
+  async function sendBlogMessage(text: string, retryId?: string) {
+    if (!text || isPending) return
+    setChatError(null)
+
+    if (retryId) {
+      setBlogMessages((m) => m.map((msg) => msg.id === retryId ? { ...msg, error: undefined } : msg))
+    } else {
+      const optimisticId = `tmp-${Date.now()}`
+      setBlogMessages((m) => [
+        ...m,
+        {
+          id: optimisticId,
+          role: 'user',
+          content: text,
+          created_at: new Date().toISOString(),
+          content_after: null,
+        },
+      ])
+    }
+
+    startTransition(async () => {
+      let res: Response
+      let json: Record<string, unknown>
+      try {
+        res = await fetch('/api/blog/chat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            postId: selectedPost?.id ?? undefined,
+          }),
+        })
+        json = await res.json()
+      } catch {
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'Network error. Check your connection.' } : msg)
+        })
+        return
+      }
+
+      if (!res.ok) {
+        let errorMsg: string
+        if (res.status === 429) {
+          errorMsg = (json.message as string) ?? 'Too many requests. Please try again later.'
+        } else {
+          errorMsg = (json.error as string) ?? 'Something went wrong. Try again.'
+        }
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: errorMsg } : msg)
+        })
+        return
+      }
+
+      if (typeof json.dailyRemaining === 'number') {
+        setDailyRemaining(json.dailyRemaining as number)
+      }
+
+      // Update selected post with the returned data
+      const post = json.post as BlogPostRow | null
+      if (post) {
+        setSelectedPost(post)
+        // Update posts list
+        setBlogPosts((prev) => {
+          const exists = prev.find((p) => p.id === post.id)
+          if (exists) {
+            return prev.map((p) => p.id === post.id ? post : p)
+          }
+          return [post, ...prev]
+        })
+      }
+
+      const msg = json.message as { id?: string; content?: string; created_at?: string } | undefined
+      const replyText = msg?.content
+      if (!replyText) {
+        console.error('[blog chat] malformed response:', json)
+        setBlogMessages((m) => {
+          const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
+          if (!last) return m
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'No reply returned. Check the server logs.' } : msg)
+        })
+        return
+      }
+      setBlogMessages((m) => [
+        ...m,
+        {
+          id: msg?.id ?? `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: replyText,
+          created_at: msg?.created_at ?? new Date().toISOString(),
+          content_after: null,
         },
       ])
     })
@@ -630,10 +742,93 @@ export function EditorClient({
         importing={ghImporting}
       />
 
+      {/* Mode toggle: Portfolio / Blog */}
+      <div style={{
+        display: 'flex',
+        gap: 0,
+        background: 'rgba(255,255,255,0.04)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        paddingLeft: 16,
+      }}>
+        {(['portfolio', 'blog'] as EditorTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setEditorTab(tab)
+              if (tab === 'blog') {
+                // Load blog site ID on first switch
+                if (!blogSiteId) {
+                  fetch('/api/blog/posts')
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if (d.siteId) setBlogSiteId(d.siteId)
+                      setBlogPosts(d.posts ?? [])
+                    })
+                    .catch(() => {})
+                }
+              }
+            }}
+            style={{
+              padding: '10px 20px',
+              fontSize: 13,
+              fontWeight: 500,
+              color: editorTab === tab ? '#fff' : '#888',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: editorTab === tab ? '2px solid #0099ff' : '2px solid transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.15s',
+            }}
+          >
+            {tab === 'portfolio' ? 'Portfolio' : 'Blog'}
+          </button>
+        ))}
+      </div>
+
       <div
         className="editor-workspace"
-        style={styles.workspace}
+        style={{
+          ...styles.workspace,
+          // Animate the right pane open when a blog post is selected.
+          // Keeping two tracks (1fr {n}px) so the grid can interpolate smoothly.
+          gridTemplateColumns:
+            editorTab === 'blog' && !selectedPost ? '1fr 0px' : '1fr 400px',
+          transition: 'grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
+        {editorTab === 'blog' ? (
+          <section
+            className="editor-preview-pane"
+            style={styles.previewPane}
+          >
+            <div
+              className="editor-preview-frame"
+              style={styles.previewFrame}
+            >
+              <BrowserFrame
+                url={
+                  selectedPost
+                    ? `folii.ai/${username}/blog/${selectedPost.slug}`
+                    : `folii.ai/${username}/blog`
+                }
+              >
+                <BlogBrowser
+                  siteId={blogSiteId}
+                  selectedPost={selectedPost}
+                  onSelectPost={(post) => {
+                    setSelectedPost(post)
+                    setBlogMessages([])
+                  }}
+                  onPostsChange={setBlogPosts}
+                  onRequestChatFocus={() => blogChatInputRef.current?.focus()}
+                  onRequestConfirm={setPendingConfirm}
+                />
+              </BrowserFrame>
+            </div>
+          </section>
+        ) : (
+          <>
         {/* Preview */}
         <section
           className="editor-preview-pane"
@@ -749,6 +944,37 @@ export function EditorClient({
           chatError={chatError}
           dailyRemaining={dailyRemaining}
         />
+          </>
+        )}
+
+        {/* Blog chat pane — always mounted when on the blog tab, but the
+            workspace grid collapses its column to 0 on the list view. Opacity
+            + overflow hide it while the grid column animates. */}
+        {editorTab === 'blog' && (
+          <ChatPane
+            messages={blogMessages}
+            content={content}
+            isPlaceholder={false}
+            isPending={isPending}
+            onSend={sendBlogMessage}
+            onRetry={(msgId, text) => sendBlogMessage(text, msgId)}
+            onRevert={() => {}}
+            reverting={null}
+            uploadError={null}
+            chatError={chatError}
+            dailyRemaining={dailyRemaining}
+            mode="blog"
+            inputRef={blogChatInputRef}
+            style={{
+              minWidth: 0,
+              overflow: 'hidden',
+              opacity: selectedPost ? 1 : 0,
+              pointerEvents: selectedPost ? 'auto' : 'none',
+              transition: 'opacity 0.22s ease-in-out',
+              transitionDelay: selectedPost ? '80ms' : '0ms',
+            }}
+          />
+        )}
       </div>
     </main>
   )

@@ -103,7 +103,7 @@ The content schema now includes the following fields in addition to name/tagline
 - experience[].location, experience[].achievements[], experience[].technologies[]
 - projects[].category, projects[].built_with, projects[].release_url, projects[].screenshot, projects[].screenshot_alt
 - skills[] grouped by category, each { category, icon, items[] }
-- hidden_sections: an array of section keys to hide from the nav bar. Valid keys: "experience", "skills", "projects", "contact". The "profile" (About Me) page is always visible and cannot be hidden. Example: to remove Skills and Contact from the nav, set hidden_sections to ["skills", "contact"]. To restore a section, remove it from the array.
+- hidden_sections: an array of section keys to hide from the nav bar. Valid keys: "experience", "skills", "projects", "contact", "blog". The "profile" (About Me) page is always visible and cannot be hidden. Example: to remove Skills and Contact from the nav, set hidden_sections to ["skills", "contact"]. To restore a section, remove it from the array.
 
 Rules:
 - Output JSON only. No prose, no markdown fences.
@@ -234,4 +234,52 @@ export function renderChatEditUserMessage(
   userRequest: string
 ): string {
   return `CURRENT_CONTENT:\n${currentContentJson}\n\nUSER_REQUEST:\n${userRequest.trim()}`
+}
+
+export const CHAT_BLOG_EDIT_SYSTEM = `You are folii.ai's blog post editor. You will be given:
+1) The user's portfolio content as JSON (for context about their work, projects, and experience).
+2) Optionally, an EXISTING blog post as JSON (if they are editing a draft).
+3) A chat message describing what they want to write or change.
+
+Your job: return a JSON object representing the blog post.
+
+Output shape:
+{
+  "title": "string (<=200 chars)",
+  "slug": "string (URL-safe, lowercase, hyphens, <=200 chars)",
+  "body": "string (markdown, <=50000 chars)",
+  "excerpt": "string (<=300 chars, optional short summary for listing cards)",
+  "tags": ["string (<=40 chars each, max 10)"],
+  "_reply": "string (optional, for meta questions)"
+}
+
+Rules:
+- Output JSON only. No prose, no markdown fences.
+- "body" is full markdown. Use proper headings (##, ###), code blocks with language tags, bold, lists. Write like a skilled engineer sharing real work, not a content mill.
+- Reference the user's actual projects, experience, and skills from their portfolio content. Do not make up work they haven't done.
+- "slug" must be URL-safe: lowercase, hyphens instead of spaces, no special characters. Derive from the title (e.g. "My React Migration" -> "my-react-migration").
+- "excerpt" is a 1-2 sentence hook for listing pages. If not obvious, generate one from the first paragraph of the body.
+- "tags" are short lowercase topic labels (e.g. "react", "typescript", "migration", "devops").
+- Writing voice: first person, present or past tense as appropriate. Concrete, specific. No marketing fluff, no em dashes, no words like "crucial" or "robust" or "delve".
+- When editing an existing post, preserve everything the user did not ask to change. "make the intro punchier" -> only the intro changes. "add a section about testing" -> append a section, keep the rest.
+- If the user asks a meta question ("what should I write about?", "is this good?"), return the existing post unchanged (or empty if new) and set "_reply" with specific advice grounded in their portfolio.
+- If the request is the user's first message and no existing post is provided, create a complete draft post.
+- Code blocks: always specify the language tag for syntax highlighting (e.g. \`\`\`typescript).
+- Never hallucinate projects, companies, or technical details not in the user's portfolio.`
+
+export function renderChatBlogEditUserMessage(
+  portfolioJson: string,
+  userRequest: string,
+  existingPostJson?: string,
+  chatHistory?: string
+): string {
+  let msg = `PORTFOLIO_CONTEXT:\n${portfolioJson}\n\n`
+  if (existingPostJson) {
+    msg += `EXISTING_POST:\n${existingPostJson}\n\n`
+  }
+  if (chatHistory) {
+    msg += `RECENT_CHAT:\n${chatHistory}\n\n`
+  }
+  msg += `USER_REQUEST:\n${userRequest.trim()}`
+  return msg
 }

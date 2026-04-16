@@ -15,6 +15,19 @@ const PLACEHOLDERS = [
   '"Tighten the tagline"',
 ]
 
+const BLOG_PLACEHOLDERS = [
+  'Tell folii what to write about…',
+  '"Write a post about my latest React migration"',
+  '"Share a lesson I learned at Acme"',
+  '"Turn my README into a blog post"',
+]
+
+const BLOG_SUGGESTIONS = [
+  'Write a post about my latest project',
+  'Share a lesson I learned recently',
+  'Summarize my README as a post',
+]
+
 export type Msg = Pick<ChatMessage, 'id' | 'role' | 'content' | 'created_at' | 'content_after'> & {
   error?: string
 }
@@ -31,6 +44,9 @@ export function ChatPane({
   uploadError,
   chatError,
   dailyRemaining,
+  mode = 'portfolio',
+  inputRef,
+  style,
 }: {
   messages: Msg[]
   content: Content
@@ -43,23 +59,29 @@ export function ChatPane({
   uploadError: string | null
   chatError: string | null
   dailyRemaining: number | null
+  mode?: 'portfolio' | 'blog'
+  inputRef?: React.Ref<HTMLTextAreaElement>
+  style?: React.CSSProperties
 }) {
+  const isBlog = mode === 'blog'
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
+
+  const placeholderList = isBlog ? BLOG_PLACEHOLDERS : PLACEHOLDERS
 
   // Rotate placeholder text every 4 seconds
   useEffect(() => {
     if (dailyRemaining === 0) return
     const timer = setInterval(() => {
-      setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length)
+      setPlaceholderIdx((i) => (i + 1) % placeholderList.length)
     }, 4000)
     return () => clearInterval(timer)
-  }, [dailyRemaining])
+  }, [dailyRemaining, placeholderList.length])
 
   const placeholder = dailyRemaining === 0
     ? 'Daily limit reached'
-    : PLACEHOLDERS[placeholderIdx]
+    : placeholderList[placeholderIdx % placeholderList.length]
 
   // Autoscroll chat
   useEffect(() => {
@@ -88,39 +110,45 @@ export function ChatPane({
         !m.id.startsWith('tmp-'),
     )
 
-  const suggestions = getSuggestions(content, isPlaceholder)
+  const suggestions = isBlog
+    ? (messages.length === 0 ? BLOG_SUGGESTIONS : [])
+    : getSuggestions(content, isPlaceholder)
 
   return (
     <aside
       className="editor-chat-pane"
-      style={styles.chatPane}
+      style={{ ...styles.chatPane, ...style }}
     >
       <div style={styles.chatHeader} className="editor-chat-header">
         <span style={styles.chatHeaderLabel} className="editor-chat-header-label">
-          CHAT · REFINE YOUR PORTFOLIO
+          {isBlog ? 'CHAT · WRITE A POST' : 'CHAT · REFINE YOUR PORTFOLIO'}
         </span>
-        <button
-          type="button"
-          onClick={() => lastRevertable && onRevert(lastRevertable.id)}
-          disabled={!lastRevertable || reverting === lastRevertable?.id}
-          style={{
-            ...styles.revertLastBtn,
-            ...(!lastRevertable ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
-          }}
-        >
-          <RotateCcw size={12} />
-          {reverting && lastRevertable && reverting === lastRevertable.id
-            ? 'Reverting…'
-            : 'Revert last'}
-        </button>
+        {!isBlog && (
+          <button
+            type="button"
+            onClick={() => lastRevertable && onRevert(lastRevertable.id)}
+            disabled={!lastRevertable || reverting === lastRevertable?.id}
+            style={{
+              ...styles.revertLastBtn,
+              ...(!lastRevertable ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
+            }}
+          >
+            <RotateCcw size={12} />
+            {reverting && lastRevertable && reverting === lastRevertable.id
+              ? 'Reverting…'
+              : 'Revert last'}
+          </button>
+        )}
       </div>
 
       <div ref={chatScrollRef} style={styles.chatScroll} className="editor-chat-scroll">
         {messages.length === 0 && (
           <p style={styles.hint}>
-            {isPlaceholder
-              ? 'Upload your resume to populate the preview, or start describing your portfolio in chat. Try: "I\'m a staff engineer at Acme working on developer tools".'
-              : 'Try: "tighten the bio", "add a project about X", or "rewrite my Acme impact line to quantify it".'}
+            {isBlog
+              ? 'Try: "write a post about my latest project", "share a lesson from my last role", or "turn a README into a post".'
+              : isPlaceholder
+                ? 'Upload your resume to populate the preview, or start describing your portfolio in chat. Try: "I\'m a staff engineer at Acme working on developer tools".'
+                : 'Try: "tighten the bio", "add a project about X", or "rewrite my Acme impact line to quantify it".'}
           </p>
         )}
         {uploadError && (
@@ -191,6 +219,7 @@ export function ChatPane({
       <form onSubmit={handleSubmit} style={styles.chatForm} className="editor-chat-form">
         <div style={styles.chatInputWrap}>
           <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => {
               setInput(e.target.value)
