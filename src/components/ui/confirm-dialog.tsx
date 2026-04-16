@@ -1,9 +1,8 @@
 'use client'
 
+import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -20,6 +19,52 @@ export type ConfirmRequest = {
   onConfirm: () => void | Promise<void>
 }
 
+const dialogStyle: React.CSSProperties = {
+  background: '#0a0a0a',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 14,
+  color: '#fff',
+  fontFamily: "'Inter Variable', -apple-system, system-ui, sans-serif",
+}
+
+const titleStyle: React.CSSProperties = {
+  fontFamily: "'Cabinet Grotesk', 'Inter Variable', sans-serif",
+  fontWeight: 500,
+  fontSize: 22,
+  letterSpacing: '-0.6px',
+  color: '#fff',
+}
+
+const descriptionStyle: React.CSSProperties = {
+  color: '#a6a6a6',
+  fontSize: 14,
+  lineHeight: 1.5,
+}
+
+const pillBase: React.CSSProperties = {
+  borderRadius: 100,
+  padding: '8px 18px',
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  lineHeight: 1,
+}
+
+const cancelStyle: React.CSSProperties = {
+  ...pillBase,
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.18)',
+  color: '#fff',
+}
+
+const confirmStyle = (destructive?: boolean): React.CSSProperties => ({
+  ...pillBase,
+  background: destructive ? '#ff4d4f' : '#0099ff',
+  border: 'none',
+  color: '#fff',
+})
+
 export function ConfirmDialog({
   request,
   onOpenChange,
@@ -29,15 +74,19 @@ export function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={request !== null} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent style={dialogStyle}>
         <AlertDialogHeader>
-          <AlertDialogTitle>{request?.title}</AlertDialogTitle>
-          <AlertDialogDescription>{request?.description}</AlertDialogDescription>
+          <AlertDialogTitle style={titleStyle}>{request?.title}</AlertDialogTitle>
+          <AlertDialogDescription style={descriptionStyle}>
+            {request?.description}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{request?.cancelLabel ?? 'Cancel'}</AlertDialogCancel>
-          <AlertDialogAction
-            variant={request?.destructive ? 'destructive' : 'default'}
+          <AlertDialogPrimitive.Cancel style={cancelStyle}>
+            {request?.cancelLabel ?? 'Cancel'}
+          </AlertDialogPrimitive.Cancel>
+          <AlertDialogPrimitive.Action
+            style={confirmStyle(request?.destructive)}
             onClick={async (e) => {
               e.preventDefault()
               await request?.onConfirm()
@@ -45,7 +94,7 @@ export function ConfirmDialog({
             }}
           >
             {request?.confirmLabel ?? 'Continue'}
-          </AlertDialogAction>
+          </AlertDialogPrimitive.Action>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
