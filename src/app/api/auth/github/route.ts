@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAppOrigin } from '@/lib/app-origin'
 
 // GET /api/auth/github — initiates GitHub OAuth flow
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -14,7 +15,7 @@ export async function GET() {
     return NextResponse.json({ error: 'github_not_configured' }, { status: 500 })
   }
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/auth/github/callback`
+  const redirectUri = `${getAppOrigin(request)}/api/auth/github/callback`
   const state = user.id // use user ID as state to verify on callback
 
   const url = new URL('https://github.com/login/oauth/authorize')
