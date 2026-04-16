@@ -790,6 +790,14 @@ function BlogEditor({
   // the title so renames keep the URL in sync without nagging the user.
   const slugLockedRef = useRef(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
+  // The debounce handle, exposed via ref so the unload-flush path can cancel
+  // it and fire the save immediately before the page goes away.
+  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Latest local state mirrored into a ref so the unload listeners (attached
+  // once on mount) can read the current values without re-subscribing on
+  // every keystroke.
+  const latestRef = useRef({ title, body, slug, postId: post.id })
+  latestRef.current = { title, body, slug, postId: post.id }
 
   // Keep slug in sync with title while the user hasn't taken ownership of it.
   useEffect(() => {
@@ -817,6 +825,7 @@ function BlogEditor({
 
     setSaveState('saving')
     const handle = setTimeout(async () => {
+      pendingTimeoutRef.current = null
       try {
         const payload: Record<string, unknown> = { title, body }
         if (slug && slug !== lastSavedRef.current.slug) payload.slug = slug
@@ -843,8 +852,71 @@ function BlogEditor({
         setSaveState('error')
       }
     }, 800)
-    return () => clearTimeout(handle)
+    pendingTimeoutRef.current = handle
+    return () => {
+      clearTimeout(handle)
+      if (pendingTimeoutRef.current === handle) pendingTimeoutRef.current = null
+    }
   }, [title, body, slug, post.id, onUpdate])
+
+  // Unsaved-changes guard. On tab close / reload / route change the 800ms
+  // debounce would otherwise drop the last keystrokes. We fire a best-effort
+  // `fetch(..., { keepalive: true })` on visibilitychange/pagehide and on
+  // unmount, and show the browser's native "leave site?" prompt via
+  // beforeunload when there's pending work.
+  useEffect(() => {
+    function buildDirtyPayload(): Record<string, unknown> | null {
+      const { title, body, slug } = latestRef.current
+      const last = lastSavedRef.current
+      if (title === last.title && body === last.body && slug === last.slug) {
+        return null
+      }
+      const payload: Record<string, unknown> = { title, body }
+      if (slug && slug !== last.slug) payload.slug = slug
+      return payload
+    }
+    function flush() {
+      const payload = buildDirtyPayload()
+      if (!payload) return
+      if (pendingTimeoutRef.current) {
+        clearTimeout(pendingTimeoutRef.current)
+        pendingTimeoutRef.current = null
+      }
+      try {
+        fetch(`/api/blog/${latestRef.current.postId}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        })
+      } catch {
+        // Best effort — the page is going away.
+      }
+    }
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!buildDirtyPayload()) return
+      e.preventDefault()
+      // Legacy browsers still read returnValue.
+      e.returnValue = ''
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    function onPageHide() {
+      flush()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onPageHide)
+      // Editor unmount (e.g. user clicked "All posts") — flush whatever the
+      // debounce hadn't fired yet so in-app navigation never drops edits.
+      flush()
+    }
+  }, [])
 
   const isPublished = post.status === 'published'
   const canPublish = title.trim().length > 0 && body.trim().length > 0
