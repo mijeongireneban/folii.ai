@@ -19,6 +19,7 @@ import { THEME_PRESETS, DEFAULT_THEME_ID } from '@/lib/themes/presets'
 import { themeStyleVars, themeColorSchemeClass, themeDisplayFont } from '@/lib/themes/apply'
 import { TemplateThemeProvider } from '@/components/template/v2/ThemeToggle'
 import { Logo } from '@/components/Logo'
+import { ConfirmDialog, type ConfirmRequest } from '@/components/ui/confirm-dialog'
 
 const SECTION_PATH: Record<PortfolioSection, string> = {
   profile: '',
@@ -86,6 +87,8 @@ export function EditorClient({
   const [ghModalOpen, setGhModalOpen] = useState(false)
   const [ghImporting, setGhImporting] = useState(false)
 
+  const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequest | null>(null)
+
   useEffect(() => {
     fetch('/api/github/status')
       .then((r) => r.json())
@@ -106,7 +109,17 @@ export function EditorClient({
     }
   }, [])
 
-  async function handleUpload(file: File) {
+  function handleUpload(file: File) {
+    setPendingConfirm({
+      title: 'Replace portfolio with resume?',
+      description: `"${file.name}" will overwrite your current portfolio content.`,
+      confirmLabel: 'Replace',
+      destructive: true,
+      onConfirm: () => doUpload(file),
+    })
+  }
+
+  async function doUpload(file: File) {
     setUploading(true)
     setUploadError(null)
     try {
@@ -130,7 +143,18 @@ export function EditorClient({
     }
   }
 
-  async function handleGitHubProfileImport() {
+  function handleGitHubProfileImport() {
+    setPendingConfirm({
+      title: 'Import profile from GitHub?',
+      description:
+        'This replaces your current profile (name, bio, avatar, links) with the data from your GitHub account.',
+      confirmLabel: 'Replace profile',
+      destructive: true,
+      onConfirm: doGitHubProfileImport,
+    })
+  }
+
+  async function doGitHubProfileImport() {
     setUploading(true)
     setUploadError(null)
     try {
@@ -155,7 +179,18 @@ export function EditorClient({
     }
   }
 
-  async function handleGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
+  function handleGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
+    setPendingConfirm({
+      title: `Import ${repos.length} ${repos.length === 1 ? 'project' : 'projects'} from GitHub?`,
+      description:
+        'This replaces the current projects in your portfolio with the selected GitHub repositories.',
+      confirmLabel: 'Replace projects',
+      destructive: true,
+      onConfirm: () => doGitHubImport(repos),
+    })
+  }
+
+  async function doGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
     setGhImporting(true)
     try {
       const res = await fetch('/api/github/import', {
@@ -189,7 +224,17 @@ export function EditorClient({
     }
   }
 
-  async function handleLinkedInUpload(file: File) {
+  function handleLinkedInUpload(file: File) {
+    setPendingConfirm({
+      title: 'Replace portfolio with LinkedIn export?',
+      description: `"${file.name}" will overwrite your current portfolio content.`,
+      confirmLabel: 'Replace',
+      destructive: true,
+      onConfirm: () => doLinkedInUpload(file),
+    })
+  }
+
+  async function doLinkedInUpload(file: File) {
     setUploading(true)
     setUploadError(null)
     try {
@@ -426,13 +471,18 @@ export function EditorClient({
     }
   }
 
-  async function handleReset() {
-    if (
-      !confirm(
-        'Reset everything? This wipes your content, chat history, and unpublishes your site. This cannot be undone.'
-      )
-    )
-      return
+  function handleReset() {
+    setPendingConfirm({
+      title: 'Reset everything?',
+      description:
+        'This wipes your content, chat history, and unpublishes your site. This cannot be undone.',
+      confirmLabel: 'Reset',
+      destructive: true,
+      onConfirm: doReset,
+    })
+  }
+
+  async function doReset() {
     setResetting(true)
     try {
       const res = await fetch('/api/content', { method: 'DELETE' })
@@ -550,10 +600,26 @@ export function EditorClient({
         ghUsername={ghUsername}
         onGhBrowse={() => setGhModalOpen(true)}
         onGhProfileImport={handleGitHubProfileImport}
-        onGhDisconnect={async () => {
-          await fetch('/api/github/status', { method: 'DELETE' })
-          setGhConnected(false)
-          setGhUsername(null)
+        onGhDisconnect={() => {
+          setPendingConfirm({
+            title: `Disconnect GitHub${ghUsername ? ` (@${ghUsername})` : ''}?`,
+            description:
+              'We will remove your GitHub authorization. You can reconnect anytime, but you will need to sign in with GitHub again.',
+            confirmLabel: 'Disconnect',
+            destructive: true,
+            onConfirm: async () => {
+              await fetch('/api/github/status', { method: 'DELETE' })
+              setGhConnected(false)
+              setGhUsername(null)
+            },
+          })
+        }}
+      />
+
+      <ConfirmDialog
+        request={pendingConfirm}
+        onOpenChange={(open) => {
+          if (!open) setPendingConfirm(null)
         }}
       />
 
