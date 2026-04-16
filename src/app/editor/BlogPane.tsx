@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft } from 'lucide-reac
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import { slugify } from '@/lib/content/slug'
+import type { ConfirmRequest } from '@/components/ui/confirm-dialog'
 
 // Explicit Markdown renderers that match DESIGN.md tokens. We can't rely on
 // Tailwind `prose` classes because @tailwindcss/typography isn't installed.
@@ -232,12 +233,14 @@ export function BlogBrowser({
   onSelectPost,
   onPostsChange,
   onRequestChatFocus,
+  onRequestConfirm,
 }: {
   siteId: string | null
   selectedPost: BlogPostRow | null
   onSelectPost: (post: BlogPostRow | null) => void
   onPostsChange: (posts: BlogPostRow[]) => void
   onRequestChatFocus?: () => void
+  onRequestConfirm: (request: ConfirmRequest) => void
 }) {
   const [posts, setPosts] = useState<BlogPostRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -263,18 +266,27 @@ export function BlogBrowser({
       .finally(() => setLoading(false))
   }, [siteId])
 
-  async function handleDelete(postId: string) {
-    if (!confirm('Delete this post? This cannot be undone.')) return
-    setDeleting(postId)
-    try {
-      await fetch(`/api/blog/${postId}`, { method: 'DELETE' })
-      const next = posts.filter((x) => x.id !== postId)
-      setPosts(next)
-      onPostsChange(next)
-      if (selectedPost?.id === postId) onSelectPost(null)
-    } finally {
-      setDeleting(null)
-    }
+  function handleDelete(postId: string) {
+    const post = posts.find((p) => p.id === postId)
+    const label = post?.title?.trim() || 'Untitled'
+    onRequestConfirm({
+      title: 'Delete this post?',
+      description: `"${label}" will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(postId)
+        try {
+          await fetch(`/api/blog/${postId}`, { method: 'DELETE' })
+          const next = posts.filter((x) => x.id !== postId)
+          setPosts(next)
+          onPostsChange(next)
+          if (selectedPost?.id === postId) onSelectPost(null)
+        } finally {
+          setDeleting(null)
+        }
+      },
+    })
   }
 
   async function handleTogglePublish(post: BlogPostRow) {
