@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -35,6 +36,9 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
+
+  const rl = await checkRateLimit(BUCKETS.blogWrite, user.id)
+  if (!rl.ok) return rateLimitResponse(rl)!
 
   const admin = createAdminClient()
 
@@ -77,6 +81,9 @@ export async function PATCH(
   if (!user) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
+
+  const rl = await checkRateLimit(BUCKETS.blogWrite, user.id)
+  if (!rl.ok) return rateLimitResponse(rl)!
 
   let raw: unknown
   try {

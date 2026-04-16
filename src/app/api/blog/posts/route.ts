@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PLACEHOLDER_CONTENT } from '@/lib/content/placeholder'
+import { BUCKETS, checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
+
+// Hard cap on posts per site. Well above any realistic portfolio size, but
+// low enough to bound DB bloat from a runaway client.
+const MAX_POSTS_PER_SITE = 500
 
 // POST: create an empty draft post for manual editing.
 export async function POST() {
@@ -14,6 +19,9 @@ export async function POST() {
   if (!user) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
+
+  const rl = await checkRateLimit(BUCKETS.blogCreate, user.id)
+  if (!rl.ok) return rateLimitResponse(rl)!
 
   const admin = createAdminClient()
 
@@ -40,6 +48,20 @@ export async function POST() {
       )
     }
     site = created
+  }
+
+  const { count: existingCount } = await admin
+    .from('blog_posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('site_id', site.id)
+  if ((existingCount ?? 0) >= MAX_POSTS_PER_SITE) {
+    return NextResponse.json(
+      {
+        error: 'post_cap_reached',
+        message: `You've hit the limit of ${MAX_POSTS_PER_SITE} posts. Delete a draft before creating another.`,
+      },
+      { status: 409 }
+    )
   }
 
   const slug = `untitled-${Date.now().toString(36)}`
