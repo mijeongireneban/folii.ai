@@ -17,6 +17,31 @@ type ChangelogEntry = {
 
 const entries: ChangelogEntry[] = [
   {
+    version: '1.3.0',
+    date: 'April 16, 2026',
+    title: 'Blog & writing',
+    features: [
+      'Blog posts on your portfolio — write essays, project deep-dives, and announcements that live at folii.ai/your-username/blog. Each post is published independently and gets a clean reader page with title, date, read time, and tags.',
+      'Chat-driven writing — ask the AI to draft a post, expand a section, change tone, or add tags. The blog chat keeps per-post history so you can iterate over multiple turns. It also reads your portfolio for context, so "write a post about my Stripe integration project" actually pulls from your project list.',
+      'Drafts vs published — every post starts as a draft. Edit as long as you want; only "Published" posts show up at /your-username/blog. Toggle anytime.',
+      'Tags and excerpts — tag posts with topic keywords (shown as pills on the listing) and write a short excerpt that previews the post on the index.',
+      'Syntax-highlighted code blocks — fenced code in your markdown gets GitHub-style highlighting (dark and light themes auto-switch with the reader\'s theme).',
+      'Autosave with unsaved-changes guard — typing autosaves in the background; navigating away with unsaved edits warns you first.',
+    ],
+    improvements: [
+      'Confirmation dialogs for destructive actions in the editor (delete project, reset portfolio, etc.) so you don\'t lose work to a stray click.',
+      'Logo and favicon refresh — the folii mark now appears in the browser tab.',
+      'Chat route timeout extended to 120s for longer edits on large portfolios.',
+    ],
+    fixes: [
+      'GitHub OAuth redirect now derives from the request origin, so importing repos works on production deploys, not just localhost.',
+      'GitHub import button no longer freezes the browser when triggering the confirm dialog.',
+      'Public blog post pages no longer crash with a "runSync finished async" error when rendering syntax-highlighted code blocks.',
+      'Blog chat correctly shows the assistant reply when the API succeeds (was previously surfacing "No reply returned" on success).',
+      'Blog editor reflects chat-driven post updates when you haven\'t typed anything, instead of appearing stale.',
+    ],
+  },
+  {
     version: '1.2.0',
     date: 'April 12, 2026',
     title: 'GitHub OAuth, profile import & unified Import menu',

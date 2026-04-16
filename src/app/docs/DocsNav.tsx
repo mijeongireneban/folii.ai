@@ -7,6 +7,7 @@ export const DOCS_NAV = [
   { href: '/docs', label: 'Getting Started' },
   { href: '/docs/importing', label: 'Importing' },
   { href: '/docs/editing', label: 'Editing with AI' },
+  { href: '/docs/blog', label: 'Blog' },
   { href: '/docs/themes', label: 'Themes' },
   { href: '/docs/publishing', label: 'Publishing' },
   { href: '/docs/faq', label: 'FAQ' },
