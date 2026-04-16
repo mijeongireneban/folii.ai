@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { slugify } from '@/lib/content/slug'
 
 export const runtime = 'nodejs'
 
@@ -15,6 +16,7 @@ const patchSchema = z
     excerpt: z.string().trim().max(300).nullable(),
     tags: z.array(z.string().trim().max(40)).max(10),
     status: z.enum(['draft', 'published']),
+    slug: z.string().max(200),
   })
   .partial()
 
@@ -111,6 +113,14 @@ export async function PATCH(
   if (body.excerpt !== undefined) updates.excerpt = body.excerpt
   if (body.tags !== undefined) updates.tags = body.tags
 
+  if (body.slug !== undefined) {
+    const cleaned = slugify(body.slug)
+    if (!cleaned) {
+      return NextResponse.json({ error: 'invalid_slug' }, { status: 400 })
+    }
+    updates.slug = cleaned
+  }
+
   if (body.status !== undefined) {
     // Publishing requires non-empty title + body.
     if (body.status === 'published') {
@@ -145,15 +155,31 @@ export async function PATCH(
     return NextResponse.json({ error: 'no_updates' }, { status: 400 })
   }
 
-  const { data: post, error } = await admin
+  let { data: post, error } = await admin
     .from('blog_posts')
     .update(updates)
     .eq('id', postId)
     .eq('site_id', site.id)
     .select('*')
     .single()
-  if (error) {
-    return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 })
+
+  // Slug collision: retry once with a suffix so autosave never leaves the post
+  // in an unsaved state. The caller sees the resolved slug in the response.
+  if (error && error.code === '23505' && updates.slug) {
+    const fallbackSlug = `${updates.slug}-${Date.now().toString(36)}`
+    const retry = await admin
+      .from('blog_posts')
+      .update({ ...updates, slug: fallbackSlug })
+      .eq('id', postId)
+      .eq('site_id', site.id)
+      .select('*')
+      .single()
+    post = retry.data
+    error = retry.error
+  }
+
+  if (error || !post) {
+    return NextResponse.json({ error: 'db_error', detail: error?.message }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, post })
