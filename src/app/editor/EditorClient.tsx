@@ -818,6 +818,7 @@ export function EditorClient({
                   }}
                   onPostsChange={setBlogPosts}
                   onRequestChatFocus={() => blogChatInputRef.current?.focus()}
+                  onRequestConfirm={setPendingConfirm}
                 />
               </BrowserFrame>
             </div>
