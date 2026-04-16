@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft } from 'lucide-react'
+import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import type { ConfirmRequest } from '@/components/ui/confirm-dialog'
@@ -212,6 +212,74 @@ const primaryBtnStyle: React.CSSProperties = {
   letterSpacing: '-0.01em',
 }
 
+// Turns a failed blog API response into a user-friendly message. Prefers a
+// server-provided `message` (e.g. rate limit, post cap), then maps known error
+// codes, then falls back to a generic line with the status code.
+async function errorFromResponse(res: Response): Promise<string> {
+  try {
+    const json = await res.clone().json()
+    if (typeof json?.message === 'string' && json.message.trim()) return json.message
+    switch (json?.error) {
+      case 'cannot_publish_empty':
+        return 'Add a title and body before publishing.'
+      case 'unauthenticated':
+        return 'Please sign in again.'
+      case 'no_site':
+        return 'Your site was not found.'
+      case 'invalid_body':
+      case 'invalid_slug':
+        return 'That change is invalid. Check your inputs and try again.'
+      case 'rate_limited':
+        return 'Too many requests. Try again in a moment.'
+      case 'db_error':
+        return 'Something went wrong saving your changes. Try again.'
+    }
+    if (typeof json?.error === 'string') return json.error
+  } catch {
+    // fall through
+  }
+  return `Request failed (${res.status}). Try again.`
+}
+
+function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        margin: '12px 40px 0',
+        padding: '10px 14px',
+        borderRadius: 10,
+        background: 'rgba(248,113,113,0.08)',
+        boxShadow: 'rgba(248,113,113,0.3) 0px 0px 0px 1px',
+        color: '#f87171',
+        fontSize: 13,
+        letterSpacing: '-0.005em',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+      }}
+    >
+      <span>{message}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#f87171',
+          cursor: 'pointer',
+          padding: 4,
+          display: 'inline-flex',
+        }}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  )
+}
+
 function readTime(body: string): string {
   const words = body.trim().split(/\s+/).length
   const minutes = Math.max(1, Math.round(words / 250))
@@ -250,6 +318,14 @@ export function BlogBrowser({
   const [importUrl, setImportUrl] = useState('')
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
+
+  // Auto-dismiss the mutation banner after 6s so it doesn't linger.
+  useEffect(() => {
+    if (!mutationError) return
+    const t = setTimeout(() => setMutationError(null), 6000)
+    return () => clearTimeout(t)
+  }, [mutationError])
 
   useEffect(() => {
     if (!siteId) return
@@ -275,12 +351,19 @@ export function BlogBrowser({
       destructive: true,
       onConfirm: async () => {
         setDeleting(postId)
+        setMutationError(null)
         try {
-          await fetch(`/api/blog/${postId}`, { method: 'DELETE' })
+          const res = await fetch(`/api/blog/${postId}`, { method: 'DELETE' })
+          if (!res.ok) {
+            setMutationError(await errorFromResponse(res))
+            return
+          }
           const next = posts.filter((x) => x.id !== postId)
           setPosts(next)
           onPostsChange(next)
           if (selectedPost?.id === postId) onSelectPost(null)
+        } catch {
+          setMutationError('Network error. Check your connection and try again.')
         } finally {
           setDeleting(null)
         }
@@ -290,6 +373,7 @@ export function BlogBrowser({
 
   async function handleTogglePublish(post: BlogPostRow) {
     setToggling(post.id)
+    setMutationError(null)
     const nextStatus = post.status === 'published' ? 'draft' : 'published'
     try {
       const res = await fetch(`/api/blog/${post.id}`, {
@@ -297,13 +381,21 @@ export function BlogBrowser({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ status: nextStatus }),
       })
+      if (!res.ok) {
+        setMutationError(await errorFromResponse(res))
+        return
+      }
       const json = await res.json()
       if (json.ok && json.post) {
         const next = posts.map((x) => (x.id === post.id ? json.post : x))
         setPosts(next)
         onPostsChange(next)
         if (selectedPost?.id === post.id) onSelectPost(json.post)
+      } else {
+        setMutationError('Could not update this post. Try again.')
       }
+    } catch {
+      setMutationError('Network error. Check your connection and try again.')
     } finally {
       setToggling(null)
     }
@@ -311,15 +403,25 @@ export function BlogBrowser({
 
   async function handleCreateNew() {
     setCreating(true)
+    setMutationError(null)
     try {
       const res = await fetch('/api/blog/posts', { method: 'POST' })
+      if (!res.ok) {
+        setMutationError(await errorFromResponse(res))
+        return
+      }
       const json = await res.json()
-      if (!res.ok || !json.ok || !json.post) return
+      if (!json.ok || !json.post) {
+        setMutationError('Could not create a new post. Try again.')
+        return
+      }
       const post = json.post as BlogPostRow
       const next = [post, ...posts]
       setPosts(next)
       onPostsChange(next)
       onSelectPost(post)
+    } catch {
+      setMutationError('Network error. Check your connection and try again.')
     } finally {
       setCreating(false)
     }
@@ -384,6 +486,8 @@ export function BlogBrowser({
         post={selectedPost}
         toggling={toggling === selectedPost.id}
         deleting={deleting === selectedPost.id}
+        mutationError={mutationError}
+        onDismissMutationError={() => setMutationError(null)}
         onBack={() => onSelectPost(null)}
         onUpdate={handlePostUpdated}
         onTogglePublish={() => handleTogglePublish(selectedPost)}
@@ -447,6 +551,13 @@ export function BlogBrowser({
           </button>
         </div>
       </div>
+
+      {mutationError && (
+        <ErrorBanner
+          message={mutationError}
+          onDismiss={() => setMutationError(null)}
+        />
+      )}
 
       {showImport && (
         <div style={{
@@ -651,6 +762,8 @@ function BlogEditor({
   post,
   toggling,
   deleting,
+  mutationError,
+  onDismissMutationError,
   onBack,
   onUpdate,
   onTogglePublish,
@@ -659,6 +772,8 @@ function BlogEditor({
   post: BlogPostRow
   toggling: boolean
   deleting: boolean
+  mutationError: string | null
+  onDismissMutationError: () => void
   onBack: () => void
   onUpdate: (post: BlogPostRow) => void
   onTogglePublish: () => void
@@ -824,6 +939,13 @@ function BlogEditor({
           </button>
         </div>
       </div>
+
+      {mutationError && (
+        <ErrorBanner
+          message={mutationError}
+          onDismiss={onDismissMutationError}
+        />
+      )}
 
       {/* Editor surface */}
       <div style={{ padding: '56px 40px 120px' }}>
