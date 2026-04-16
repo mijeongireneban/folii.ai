@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import rehypePrettyCode from 'rehype-pretty-code'
 import type { ComponentPropsWithoutRef } from 'react'
 
@@ -9,6 +10,7 @@ export async function BlogPostContent({ body }: { body: string }) {
   return (
     <div className="prose prose-neutral dark:prose-invert prose-headings:text-foreground prose-a:text-primary prose-code:text-foreground prose-pre:bg-muted prose-pre:border-border/50 prose-pre:border max-w-none">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         rehypePlugins={[
           [
             rehypePrettyCode,

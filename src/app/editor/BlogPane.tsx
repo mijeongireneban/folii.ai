@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { slugify } from '@/lib/content/slug'
 import type { ConfirmRequest } from '@/components/ui/confirm-dialog'
 
@@ -158,6 +159,66 @@ const markdownComponents: Components = {
       style={{ maxWidth: '100%', borderRadius: 10, margin: '18px 0' }}
     />
   ),
+  // GFM extensions (via remark-gfm): tables, strikethrough, task lists.
+  table: ({ children }) => (
+    <div style={{ margin: '18px 0', overflowX: 'auto' }}>
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: 14,
+          color: '#e5e5e5',
+        }}
+      >
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead style={{ background: 'rgba(255,255,255,0.03)' }}>{children}</thead>
+  ),
+  tr: ({ children }) => (
+    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th
+      style={{
+        textAlign: 'left',
+        padding: '8px 12px',
+        fontWeight: 600,
+        color: '#ffffff',
+        letterSpacing: '-0.005em',
+      }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td style={{ padding: '8px 12px', verticalAlign: 'top' }}>{children}</td>
+  ),
+  del: ({ children }) => (
+    <del style={{ color: '#a6a6a6', textDecorationColor: 'rgba(255,255,255,0.4)' }}>
+      {children}
+    </del>
+  ),
+  input: ({ type, checked, disabled }) => {
+    // Task-list checkbox — GFM renders these as disabled inputs.
+    if (type !== 'checkbox') return null
+    return (
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        readOnly
+        style={{
+          marginRight: 8,
+          accentColor: '#0099ff',
+          verticalAlign: 'middle',
+          transform: 'translateY(-1px)',
+        }}
+      />
+    )
+  },
 }
 
 export type BlogPostRow = {
@@ -995,7 +1056,12 @@ function BlogEditor({
                     letterSpacing: '-0.005em',
                   }}
                 >
-                  <ReactMarkdown components={markdownComponents}>{body}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {body}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <div
