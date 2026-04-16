@@ -26,19 +26,21 @@ const dialogStyle: React.CSSProperties = {
   borderRadius: 14,
   color: '#fff',
   fontFamily: "'Inter Variable', -apple-system, system-ui, sans-serif",
+  fontFeatureSettings: "'cv01', 'cv05', 'cv09', 'cv11', 'ss03', 'ss07'",
 }
 
 const titleStyle: React.CSSProperties = {
-  fontFamily: "'Cabinet Grotesk', 'Inter Variable', sans-serif",
-  fontWeight: 500,
-  fontSize: 22,
-  letterSpacing: '-0.6px',
+  fontFamily: 'inherit',
+  fontWeight: 600,
+  fontSize: 17,
+  letterSpacing: '-0.2px',
   color: '#fff',
 }
 
 const descriptionStyle: React.CSSProperties = {
+  fontFamily: 'inherit',
   color: '#a6a6a6',
-  fontSize: 14,
+  fontSize: 13,
   lineHeight: 1.5,
 }
 
