@@ -55,11 +55,14 @@ export async function chatBlogEdit(
     return { ok: false, reason: 'invalid_output', detail: 'not json' }
   }
 
-  // Extract _reply before schema validation.
+  // Extract _reply before schema validation. Treat empty/whitespace-only
+  // strings as "no reply" so the route can fall back to a default — an empty
+  // reply would otherwise be saved to chat_messages and render as a broken
+  // assistant bubble in the UI.
   let reply: string | undefined
   if (parsed && typeof parsed === 'object' && '_reply' in parsed) {
     const maybe = (parsed as { _reply?: unknown })._reply
-    if (typeof maybe === 'string') reply = maybe
+    if (typeof maybe === 'string' && maybe.trim()) reply = maybe.trim()
     delete (parsed as { _reply?: unknown })._reply
   }
 

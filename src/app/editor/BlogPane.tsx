@@ -869,6 +869,47 @@ function BlogEditor({
   const latestRef = useRef({ title, body, slug, tags, excerpt, postId: post.id })
   latestRef.current = { title, body, slug, tags, excerpt, postId: post.id }
 
+  // Adopt externally-driven post updates (e.g. chat generated new content for
+  // this post). Without this, useState(post.*) initializers run once and the
+  // editor stays stale when the parent swaps in a newer `post` prop with the
+  // same id. We only overwrite when the editor is clean — if the user has
+  // unsaved edits, their work wins and the external update is dropped.
+  useEffect(() => {
+    const last = lastSavedRef.current
+    const incomingExcerpt = post.excerpt ?? ''
+    const incomingDiffers =
+      post.title !== last.title ||
+      post.body !== last.body ||
+      post.slug !== last.slug ||
+      incomingExcerpt !== last.excerpt ||
+      post.tags.length !== last.tags.length ||
+      post.tags.some((t, i) => t !== last.tags[i])
+    if (!incomingDiffers) return
+
+    const current = latestRef.current
+    const localClean =
+      current.title === last.title &&
+      current.body === last.body &&
+      current.slug === last.slug &&
+      current.excerpt === last.excerpt &&
+      current.tags.length === last.tags.length &&
+      current.tags.every((t, i) => t === last.tags[i])
+    if (!localClean) return
+
+    setTitle(post.title)
+    setBody(post.body)
+    setSlug(post.slug)
+    setTags(post.tags)
+    setExcerpt(incomingExcerpt)
+    lastSavedRef.current = {
+      title: post.title,
+      body: post.body,
+      slug: post.slug,
+      tags: post.tags,
+      excerpt: incomingExcerpt,
+    }
+  }, [post])
+
   // Keep slug in sync with title while the user hasn't taken ownership of it.
   useEffect(() => {
     if (slugLockedRef.current) return

@@ -189,6 +189,10 @@ export function EditorClient({
   }
 
   function handleGitHubImport(repos: { fullName: string; name: string; description: string | null; language: string | null; stars: number; htmlUrl: string; homepage: string | null; topics: string[] }[]) {
+    // Close the repo picker first. Its overlay sits at zIndex 200 while Radix
+    // AlertDialog renders at z-50, so leaving it open would hide the confirm
+    // behind it and Radix's focus trap would make the page look frozen.
+    setGhModalOpen(false)
     setPendingConfirm({
       title: `Import ${repos.length} ${repos.length === 1 ? 'project' : 'projects'} from GitHub?`,
       description:

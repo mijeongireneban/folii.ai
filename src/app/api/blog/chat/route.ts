@@ -204,8 +204,10 @@ export async function POST(request: NextRequest) {
   }
 
   // 10. Save assistant message
+  // Use `||` so empty strings (defensive — chatBlogEdit already filters these)
+  // fall through to the default instead of saving a blank assistant message.
   const assistantText =
-    result.reply ?? 'Updated your post. Let me know what to change next.'
+    result.reply || 'Updated your post. Let me know what to change next.'
   const { data: assistantMsg, error: assistantMsgErr } = await admin
     .from('chat_messages')
     .insert({
