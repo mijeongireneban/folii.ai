@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, Plus, Trash2, Eye, EyeOff, Link, ArrowLeft, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { slugify } from '@/lib/content/slug'
 import type { ConfirmRequest } from '@/components/ui/confirm-dialog'
 
@@ -158,6 +159,66 @@ const markdownComponents: Components = {
       style={{ maxWidth: '100%', borderRadius: 10, margin: '18px 0' }}
     />
   ),
+  // GFM extensions (via remark-gfm): tables, strikethrough, task lists.
+  table: ({ children }) => (
+    <div style={{ margin: '18px 0', overflowX: 'auto' }}>
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: 14,
+          color: '#e5e5e5',
+        }}
+      >
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead style={{ background: 'rgba(255,255,255,0.03)' }}>{children}</thead>
+  ),
+  tr: ({ children }) => (
+    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th
+      style={{
+        textAlign: 'left',
+        padding: '8px 12px',
+        fontWeight: 600,
+        color: '#ffffff',
+        letterSpacing: '-0.005em',
+      }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td style={{ padding: '8px 12px', verticalAlign: 'top' }}>{children}</td>
+  ),
+  del: ({ children }) => (
+    <del style={{ color: '#a6a6a6', textDecorationColor: 'rgba(255,255,255,0.4)' }}>
+      {children}
+    </del>
+  ),
+  input: ({ type, checked, disabled }) => {
+    // Task-list checkbox — GFM renders these as disabled inputs.
+    if (type !== 'checkbox') return null
+    return (
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        readOnly
+        style={{
+          marginRight: 8,
+          accentColor: '#0099ff',
+          verticalAlign: 'middle',
+          transform: 'translateY(-1px)',
+        }}
+      />
+    )
+  },
 }
 
 export type BlogPostRow = {
@@ -783,9 +844,18 @@ function BlogEditor({
   const [title, setTitle] = useState(post.title)
   const [body, setBody] = useState(post.body)
   const [slug, setSlug] = useState(post.slug)
+  const [tags, setTags] = useState<string[]>(post.tags)
+  const [tagDraft, setTagDraft] = useState('')
+  const [excerpt, setExcerpt] = useState(post.excerpt ?? '')
   const [view, setView] = useState<'write' | 'preview'>('write')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const lastSavedRef = useRef({ title: post.title, body: post.body, slug: post.slug })
+  const lastSavedRef = useRef({
+    title: post.title,
+    body: post.body,
+    slug: post.slug,
+    tags: post.tags,
+    excerpt: post.excerpt ?? '',
+  })
   // True once the user manually edits the slug. While false, the slug tracks
   // the title so renames keep the URL in sync without nagging the user.
   const slugLockedRef = useRef(false)
@@ -796,8 +866,8 @@ function BlogEditor({
   // Latest local state mirrored into a ref so the unload listeners (attached
   // once on mount) can read the current values without re-subscribing on
   // every keystroke.
-  const latestRef = useRef({ title, body, slug, postId: post.id })
-  latestRef.current = { title, body, slug, postId: post.id }
+  const latestRef = useRef({ title, body, slug, tags, excerpt, postId: post.id })
+  latestRef.current = { title, body, slug, tags, excerpt, postId: post.id }
 
   // Keep slug in sync with title while the user hasn't taken ownership of it.
   useEffect(() => {
@@ -815,12 +885,19 @@ function BlogEditor({
     el.style.height = `${el.scrollHeight}px`
   }, [body, view])
 
-  // Debounced autosave when title, body, or slug changes.
+  // Debounced autosave when title, body, slug, tags, or excerpt changes.
   useEffect(() => {
+    const trimmedExcerpt = excerpt.trim()
+    const lastExcerpt = lastSavedRef.current.excerpt
+    const tagsChanged =
+      tags.length !== lastSavedRef.current.tags.length ||
+      tags.some((t, i) => t !== lastSavedRef.current.tags[i])
     const dirty =
       title !== lastSavedRef.current.title ||
       body !== lastSavedRef.current.body ||
-      slug !== lastSavedRef.current.slug
+      slug !== lastSavedRef.current.slug ||
+      tagsChanged ||
+      trimmedExcerpt !== lastExcerpt
     if (!dirty) return
 
     setSaveState('saving')
@@ -829,6 +906,10 @@ function BlogEditor({
       try {
         const payload: Record<string, unknown> = { title, body }
         if (slug && slug !== lastSavedRef.current.slug) payload.slug = slug
+        if (tagsChanged) payload.tags = tags
+        if (trimmedExcerpt !== lastExcerpt) {
+          payload.excerpt = trimmedExcerpt ? trimmedExcerpt : null
+        }
         const res = await fetch(`/api/blog/${post.id}`, {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
@@ -840,6 +921,8 @@ function BlogEditor({
             title: json.post.title,
             body: json.post.body,
             slug: json.post.slug,
+            tags: json.post.tags,
+            excerpt: json.post.excerpt ?? '',
           }
           // Server may have deduped the slug (collision fallback) — mirror it back.
           if (json.post.slug !== slug) setSlug(json.post.slug)
@@ -857,7 +940,24 @@ function BlogEditor({
       clearTimeout(handle)
       if (pendingTimeoutRef.current === handle) pendingTimeoutRef.current = null
     }
-  }, [title, body, slug, post.id, onUpdate])
+  }, [title, body, slug, tags, excerpt, post.id, onUpdate])
+
+  const MAX_TAGS = 10
+  const MAX_TAG_LEN = 40
+  function commitTag() {
+    const raw = tagDraft.trim().slice(0, MAX_TAG_LEN)
+    if (!raw) return
+    if (tags.length >= MAX_TAGS) return
+    if (tags.includes(raw)) {
+      setTagDraft('')
+      return
+    }
+    setTags([...tags, raw])
+    setTagDraft('')
+  }
+  function removeTag(tag: string) {
+    setTags(tags.filter((t) => t !== tag))
+  }
 
   // Unsaved-changes guard. On tab close / reload / route change the 800ms
   // debounce would otherwise drop the last keystrokes. We fire a best-effort
@@ -866,13 +966,26 @@ function BlogEditor({
   // beforeunload when there's pending work.
   useEffect(() => {
     function buildDirtyPayload(): Record<string, unknown> | null {
-      const { title, body, slug } = latestRef.current
+      const { title, body, slug, tags, excerpt } = latestRef.current
       const last = lastSavedRef.current
-      if (title === last.title && body === last.body && slug === last.slug) {
+      const trimmedExcerpt = excerpt.trim()
+      const tagsChanged =
+        tags.length !== last.tags.length ||
+        tags.some((t, i) => t !== last.tags[i])
+      const excerptChanged = trimmedExcerpt !== last.excerpt
+      if (
+        title === last.title &&
+        body === last.body &&
+        slug === last.slug &&
+        !tagsChanged &&
+        !excerptChanged
+      ) {
         return null
       }
       const payload: Record<string, unknown> = { title, body }
       if (slug && slug !== last.slug) payload.slug = slug
+      if (tagsChanged) payload.tags = tags
+      if (excerptChanged) payload.excerpt = trimmedExcerpt ? trimmedExcerpt : null
       return payload
     }
     function flush() {
@@ -1067,7 +1180,12 @@ function BlogEditor({
                     letterSpacing: '-0.005em',
                   }}
                 >
-                  <ReactMarkdown components={markdownComponents}>{body}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {body}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <div
@@ -1137,6 +1255,103 @@ function BlogEditor({
               }}
             />
           </div>
+          {/* Tag chip input */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              alignItems: 'center',
+              marginBottom: 14,
+            }}
+          >
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontFamily: "'Azeret Mono', ui-monospace, monospace",
+                  fontSize: 11,
+                  padding: '3px 4px 3px 10px',
+                  borderRadius: 100,
+                  color: '#e5e5e5',
+                  boxShadow: 'rgba(255,255,255,0.12) 0px 0px 0px 1px',
+                }}
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  aria-label={`Remove tag ${tag}`}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 100,
+                    color: '#a6a6a6',
+                    cursor: 'pointer',
+                    padding: 2,
+                    display: 'inline-flex',
+                  }}
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+            {tags.length < MAX_TAGS && (
+              <input
+                type="text"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value.slice(0, MAX_TAG_LEN))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault()
+                    commitTag()
+                  } else if (e.key === 'Backspace' && !tagDraft && tags.length) {
+                    e.preventDefault()
+                    setTags(tags.slice(0, -1))
+                  }
+                }}
+                onBlur={commitTag}
+                placeholder={tags.length === 0 ? 'Add tags' : 'Add…'}
+                style={{
+                  flex: tags.length === 0 ? 1 : 0,
+                  minWidth: 80,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontFamily: "'Azeret Mono', ui-monospace, monospace",
+                  fontSize: 11,
+                  color: '#e5e5e5',
+                  padding: '3px 6px',
+                }}
+              />
+            )}
+          </div>
+          {/* Excerpt — short summary shown on the blog index */}
+          <textarea
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value.slice(0, 300))}
+            placeholder="Short summary for the blog index (optional)"
+            rows={2}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: '#a6a6a6',
+              letterSpacing: '-0.005em',
+              padding: '10px 0 16px',
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              marginBottom: 28,
+            }}
+          />
           <textarea
             ref={bodyRef}
             value={body}
