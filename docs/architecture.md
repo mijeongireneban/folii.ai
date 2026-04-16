@@ -49,24 +49,79 @@ Each field's max length and required/optional flag is encoded in the schema. No 
 
 ## Data model (Postgres via Supabase)
 
-### `profiles` table
+Migrations live in `supabase/migrations/` and are numbered. Identity (`profiles`)
+is split from content (`sites`) so a user can later own multiple sites without a
+schema migration. Blog posts and chat history hang off `sites`.
+
+### `profiles` — identity + username
 
 ```sql
-user_id          uuid PRIMARY KEY REFERENCES auth.users(id)
-username         citext UNIQUE NOT NULL
-content          jsonb NOT NULL
-previous_content jsonb                    -- last version before most recent edit (single-level undo)
-published        boolean DEFAULT false
-created_at       timestamptz DEFAULT now()
-updated_at       timestamptz DEFAULT now()
+id          uuid PRIMARY KEY REFERENCES auth.users(id)
+username    citext UNIQUE NOT NULL    -- lowercase, alnum + hyphens, 3-30 chars
+created_at  timestamptz DEFAULT now()
+updated_at  timestamptz DEFAULT now()
 ```
 
-Unique citext index on `username` for case-insensitive collision checks. Shape constraint on `username` (lowercase, alphanumeric + hyphens, 3-30 chars, no leading/trailing hyphen).
+### `sites` — portfolio content (one per user in v1)
+
+```sql
+id            uuid PRIMARY KEY
+owner_id      uuid REFERENCES profiles(id) ON DELETE CASCADE   -- UNIQUE in v1
+template      text DEFAULT 'swe'
+content       jsonb NOT NULL                                   -- Zod-validated payload
+published     boolean DEFAULT false
+published_at  timestamptz
+created_at    timestamptz DEFAULT now()
+updated_at    timestamptz DEFAULT now()
+```
+
+### `blog_posts` — chat-driven posts attached to a site (migration 0007)
+
+```sql
+id            uuid PRIMARY KEY
+site_id       uuid REFERENCES sites(id) ON DELETE CASCADE
+slug          citext NOT NULL                                  -- UNIQUE per (site_id, slug)
+title         text NOT NULL
+body          text                                             -- markdown
+excerpt       text
+tags          text[] DEFAULT '{}'
+source        text CHECK (source IN ('chat','import','github'))
+status        text CHECK (status IN ('draft','published'))
+published_at  timestamptz
+created_at    timestamptz DEFAULT now()
+updated_at    timestamptz DEFAULT now()
+```
+
+Composite index `(site_id, status, published_at desc)` powers the listing query.
+
+### `chat_messages` — assistant chat history (migration 0003), with blog FK (0008)
+
+```sql
+id            uuid PRIMARY KEY
+site_id       uuid REFERENCES sites(id) ON DELETE CASCADE
+blog_post_id  uuid REFERENCES blog_posts(id) ON DELETE SET NULL  -- null = portfolio chat
+role          text CHECK (role IN ('user','assistant'))
+content       text NOT NULL
+created_at    timestamptz DEFAULT now()
+```
+
+The single `chat_messages` table serves both portfolio chat (`blog_post_id IS NULL`)
+and per-post blog chat. Deleting a post unlinks its messages instead of deleting them.
+
+### `integrations` (migration 0006), `project_images` (0004), rate-limit (0002, 0005)
+
+`integrations` holds OAuth tokens (GitHub today, more later). `project_images`
+records uploads keyed to a site. Rate-limit tables back the SQL fallback path
+when Upstash is unreachable.
 
 ### Row-level security
 
-- `SELECT` / `UPDATE` on own row: `user_id = auth.uid()`
-- Public portfolio lookup uses the **server-side admin client** filtered by `published = true`. Never exposes unpublished drafts.
+- `profiles`: public `SELECT` (needed for `/[username]` lookups), self-only `INSERT`/`UPDATE`.
+- `sites`: self-only via `owner_id = auth.uid()`. Public portfolio reads go through
+  the **server-side admin client** filtered by `published = true`.
+- `blog_posts`: published rows are world-readable; drafts are owner-only; all
+  writes require `auth.uid() = sites.owner_id`.
+- `chat_messages`: owner-only by `site_id`.
 - RLS is tested as a hard requirement. Unpublished content must never leak across users.
 
 ### Storage buckets
@@ -116,12 +171,42 @@ Every failure branch maps to a centralized error code.
 ### Publish flow
 
 1. `POST /api/publish { published: true }`
-2. Server sets `profiles.published = true`
+2. Server sets `sites.published = true` and stamps `published_at`
 3. `revalidatePath('/' + username)` invalidates the ISR cache
 4. Next visitor to `/[username]` triggers regeneration
 5. Subsequent visitors hit the Vercel CDN cache
 
 The `/[username]` route is a statically-cached server component. First click is fast because there's no session and no DB query on the common path. Same `revalidatePath` fires on every chat edit so a published portfolio stays in sync with the editor.
+
+### Blog write + publish
+
+```
+editor "New post" → BlogPane mounts with empty draft
+  ↓
+user types title/body OR uses blog chat ("draft a post about X")
+  ↓
+autosave (debounced) → PATCH /api/blog/[postId]
+  └── on first save: POST /api/blog/posts creates the row, returns id
+  ↓
+chat: POST /api/blog/chat { message, postId? }
+  ├── auth + blog rate limit (per-minute + daily bucket)
+  ├── load site.content (portfolio context) + last 10 chat_messages for postId
+  ├── chatBlogEdit() → LLM returns { post: BlogPost, _reply?: string }
+  ├── upsert blog_posts row
+  └── insert assistant message into chat_messages
+  ↓
+"Publish" toggles status='published' and stamps published_at
+  ↓
+/[username]/blog lists status='published' posts
+/[username]/blog/[slug] renders body via async unified pipeline
+  (remark-parse → remark-gfm → remark-rehype → rehype-pretty-code → rehype-stringify)
+```
+
+Why the async unified pipeline instead of `react-markdown`: `rehype-pretty-code`
++ Shiki is async, and `react-markdown` v10 calls `processor.runSync()` which
+throws on async plugins. Server component runs the pipeline once and injects
+HTML via `dangerouslySetInnerHTML`. Custom CSS in `.blog-content` styles the
+output to match DESIGN.md (no `@tailwindcss/typography` dependency).
 
 ## LLM latency UX (non-negotiable)
 
@@ -161,17 +246,22 @@ UNKNOWN               "Something went wrong. Copy your last message and refresh.
 ### Public
 
 - `/` — landing
+- `/changelog` — release notes (mirrors `docs/changelog.md`)
+- `/docs` — user-facing documentation pages
 - `/auth/signup`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/verify-email`
 - `/[username]`, `/[username]/experience`, `/[username]/skills`, `/[username]/projects`, `/[username]/contact` — public portfolio sections (published only, 404 otherwise)
+- `/[username]/blog` — public blog index (published posts only)
+- `/[username]/blog/[slug]` — public post reader, syntax-highlighted via rehype-pretty-code
+- `/[username]/og` — dynamic OG image for portfolio share previews
 
 ### Authenticated
 
-- `/editor` — single-page editor with preview + chat + JSON toggle, split or focus layout
+- `/editor` — single-page editor with preview + chat + JSON toggle, split or focus layout, blog pane, theme picker
 
 ### API
 
 - `POST /api/wizard/parse` — resume PDF or text → extracted content
-- `POST /api/chat` — chat message → JSON Patch → updated content
+- `POST /api/chat` — portfolio chat message → JSON Patch → updated content
 - `POST /api/revert` — restore `previous_content`
 - `PUT /api/content` — save JSON directly (power-user path)
 - `DELETE /api/content` — reset everything
@@ -179,6 +269,12 @@ UNKNOWN               "Something went wrong. Copy your last message and refresh.
 - `POST /api/upload/project-image`, `POST /api/upload/avatar` — image uploads
 - `GET /api/username/check?slug=...` — availability check
 - `PATCH /api/username` — update slug
+- `GET|POST /api/blog/posts` — list / create blog posts
+- `GET|PATCH|DELETE /api/blog/[postId]` — read / update / delete a single post
+- `POST /api/blog/chat` — blog-specific chat that drafts and edits the active post
+- `POST /api/blog/import` — import blog posts from external sources
+- `GET /api/github/status`, `GET /api/github/repos` — OAuth status + repo list
+- `POST /api/github/import`, `POST /api/github/import-profile` — pull projects + profile from GitHub
 
 ## Directory layout
 
