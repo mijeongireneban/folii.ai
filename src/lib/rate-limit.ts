@@ -20,6 +20,11 @@ export const BUCKETS = {
   ipChat:      { name: 'chat-ip',     max: 60, windowSeconds: 60 },       // fallback per-IP
   blogChat:      { name: 'blog-chat',      max: 20, windowSeconds: 60 },    // 20 blog msgs/min/user
   blogChatDaily: { name: 'blog-chat-day',  max: 50, windowSeconds: 86400 }, // 50 blog msgs/day/user
+  // Autosave fires every 800ms while typing (~75/min ceiling) plus publish
+  // toggles and deletes. 120/min leaves headroom without letting a runaway
+  // client thrash the DB.
+  blogWrite:     { name: 'blog-write',     max: 120, windowSeconds: 60 },   // 120 post writes/min/user
+  blogCreate:    { name: 'blog-create',    max: 30, windowSeconds: 60 },    // 30 new drafts/min/user
 } as const satisfies Record<string, RateLimitBucket>
 
 export function bucketKey(bucket: RateLimitBucket, subject: string): string {
