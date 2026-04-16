@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAppOrigin } from '@/lib/app-origin'
 
 // GET /api/auth/github/callback — exchanges code for token, stores in DB
 export async function GET(request: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const state = url.searchParams.get('state')
   const error = url.searchParams.get('error')
 
-  const editorUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/editor`
+  const editorUrl = `${getAppOrigin(request)}/editor`
 
   if (error || !code) {
     console.error('[github-callback] OAuth error:', error)
