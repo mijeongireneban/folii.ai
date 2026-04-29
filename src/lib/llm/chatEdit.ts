@@ -13,7 +13,8 @@ export type ChatEditResult =
 
 export async function chatEdit(
   current: Content,
-  userRequest: string
+  userRequest: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<ChatEditResult> {
   if (!userRequest.trim()) {
     return { ok: false, reason: 'empty_request' }
@@ -35,10 +36,14 @@ export async function chatEdit(
       ],
       response_format: { type: 'json_object' },
     }, {
-      timeout: 45_000, // 45s to leave buffer within 60s function limit
+      timeout: 45_000,
+      signal: options.signal,
     })
     raw = res.choices[0]?.message?.content ?? ''
   } catch (err) {
+    if (options.signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      return { ok: false, reason: 'llm_error', detail: 'aborted' }
+    }
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[chatEdit] LLM call failed:', detail)
     return { ok: false, reason: 'llm_error', detail }

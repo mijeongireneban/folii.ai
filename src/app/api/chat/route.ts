@@ -19,7 +19,16 @@ const bodySchema = z.object({
   message: z.string().trim().min(1).max(2000),
 })
 
+// Returned when the client disconnected mid-request. The body never reaches
+// the client (socket is gone), but returning a Response stops Next/Vercel from
+// surfacing the doomed pipe-write as an unhandled error.
+function abortedResponse() {
+  return new Response(null, { status: 499 })
+}
+
 export async function POST(request: NextRequest) {
+  const { signal } = request
+
   // 1. Auth
   const supabase = await createClient()
   const {
@@ -28,12 +37,14 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
+  if (signal.aborted) return abortedResponse()
 
   // 2. Rate limit (per-minute burst + daily cap)
   const rl = await checkRateLimit(BUCKETS.chat, user.id)
   if (!rl.ok) return rateLimitResponse(rl)!
   const dailyRl = await checkRateLimit(BUCKETS.chatDaily, user.id)
   if (!dailyRl.ok) return rateLimitResponse(dailyRl)!
+  if (signal.aborted) return abortedResponse()
 
   // 3. Validate body
   let body: z.infer<typeof bodySchema>
@@ -95,6 +106,8 @@ export async function POST(request: NextRequest) {
     content: body.message,
   })
 
+  if (signal.aborted) return abortedResponse()
+
   // 6. Enrich message with GitHub repo data if URLs are detected
   let enrichedMessage = body.message
   const repos = await fetchGitHubReposFromMessage(body.message)
@@ -102,23 +115,31 @@ export async function POST(request: NextRequest) {
     enrichedMessage = body.message + formatRepoContext(repos)
   }
 
-  // 7. Run the edit
-  const result = await chatEdit(current, enrichedMessage)
+  // 7. Run the edit. Pass request.signal so the OpenAI call is cancelled when
+  //    the client disconnects — otherwise we'd burn ~45s of compute and then
+  //    crash trying to write the response to a closed socket.
+  const result = await chatEdit(current, enrichedMessage, { signal })
   if (!result.ok) {
+    if (result.detail === 'aborted' || signal.aborted) {
+      return abortedResponse()
+    }
     console.error('[chat] edit failed:', result.reason, result.detail)
-    // Save an assistant error message so the user sees what happened.
-    await admin.from('chat_messages').insert({
-      site_id: site.id,
-      role: 'assistant',
-      content: `Sorry, I couldn't apply that change (${result.reason}).`,
-    })
+    try {
+      await admin.from('chat_messages').insert({
+        site_id: site.id,
+        role: 'assistant',
+        content: `Sorry, I couldn't apply that change (${result.reason}).`,
+      })
+    } catch (err) {
+      console.error('[chat] failed to persist error message:', err)
+    }
     return NextResponse.json(
       { error: 'edit_failed', reason: result.reason, detail: result.detail },
       { status: result.reason === 'empty_request' ? 400 : 502 }
     )
   }
 
-  // 7. Write back to sites (only when this turn was an actual edit) and save
+  // 8. Write back to sites (only when this turn was an actual edit) and save
   //    the assistant message. If the model returned a meta `_reply`, treat the
   //    turn as Q&A: skip the sites update and don't snapshot content_after, so
   //    "Revert last" stays attached to the most recent real edit.
@@ -140,16 +161,25 @@ export async function POST(request: NextRequest) {
     result.reply ??
     result.needsInfo ??
     'Updated. Let me know what to change next.'
-  const { data: assistantMsg } = await admin
-    .from('chat_messages')
-    .insert({
-      site_id: site.id,
-      role: 'assistant',
-      content: assistantText,
-      content_after: isReplyOnly ? null : result.content,
-    })
-    .select('id, created_at')
-    .single()
+
+  let assistantMsg: { id: string; created_at: string } | null = null
+  try {
+    const { data } = await admin
+      .from('chat_messages')
+      .insert({
+        site_id: site.id,
+        role: 'assistant',
+        content: assistantText,
+        content_after: isReplyOnly ? null : result.content,
+      })
+      .select('id, created_at')
+      .single()
+    assistantMsg = data
+  } catch (err) {
+    console.error('[chat] failed to persist assistant message:', err)
+  }
+
+  if (signal.aborted) return abortedResponse()
 
   return NextResponse.json({
     ok: true,
