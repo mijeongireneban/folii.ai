@@ -98,6 +98,11 @@ export function EditorClient({
   const blogChatInputRef = useRef<HTMLTextAreaElement>(null)
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequest | null>(null)
 
+  // In-flight chat request — aborted on unmount or when a new send starts so
+  // we don't leak a long OpenAI call behind a closed socket (TOK-41).
+  const chatAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => chatAbortRef.current?.abort(), [])
+
   useEffect(() => {
     fetch('/api/github/status')
       .then((r) => r.json())
@@ -294,6 +299,16 @@ export function EditorClient({
       ])
     }
 
+    chatAbortRef.current?.abort()
+    const controller = new AbortController()
+    chatAbortRef.current = controller
+    // Server caps at maxDuration=120s. Give it 110s and bail with a clean
+    // message rather than waiting indefinitely for a hung request.
+    const timeoutId = setTimeout(
+      () => controller.abort(new DOMException('timeout', 'TimeoutError')),
+      110_000
+    )
+
     startTransition(async () => {
       let res: Response
       let json: Record<string, unknown>
@@ -302,16 +317,23 @@ export function EditorClient({
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ message: text }),
+          signal: controller.signal,
         })
         json = await res.json()
-      } catch {
-        // Network error — mark the last user message as failed
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.name === 'TimeoutError'
+        const errorMsg = isTimeout
+          ? 'Request timed out. Try a shorter or simpler request.'
+          : 'Network error. Check your connection.'
         setMessages((m) => {
           const last = [...m].reverse().find((msg) => msg.role === 'user' && msg.content === text)
           if (!last) return m
-          return m.map((msg) => msg.id === last.id ? { ...msg, error: 'Network error. Check your connection.' } : msg)
+          return m.map((msg) => msg.id === last.id ? { ...msg, error: errorMsg } : msg)
         })
         return
+      } finally {
+        clearTimeout(timeoutId)
+        if (chatAbortRef.current === controller) chatAbortRef.current = null
       }
 
       if (!res.ok) {
